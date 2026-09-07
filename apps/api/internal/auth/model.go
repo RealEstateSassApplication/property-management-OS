@@ -11,6 +11,10 @@ const (
 	ManagePeople    Permission = "people:manage"
 	ViewLeases      Permission = "leases:view"
 	ManageLeases    Permission = "leases:manage"
+	ViewOwners      Permission = "owners:view"
+	ManageOwners    Permission = "owners:manage"
+	ViewRent        Permission = "rent:view"
+	ManageRent      Permission = "rent:manage"
 )
 
 type Membership struct {

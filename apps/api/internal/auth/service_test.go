@@ -22,10 +22,23 @@ func TestAuthorizeAllowsManager(t *testing.T) {
 	}
 }
 
+func TestAuthorizeAllowsAccountantToManageRent(t *testing.T) {
+	service := NewService(fakeMembershipRepository{membership: Membership{Role: "accountant"}})
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageRent); err != nil {
+		t.Fatalf("expected accountant to manage rent: %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageOwners); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected accountant owner writes to be forbidden, got %v", err)
+	}
+}
+
 func TestAuthorizeRestrictsViewerWrites(t *testing.T) {
 	service := NewService(fakeMembershipRepository{membership: Membership{Role: "viewer"}})
-	if _, err := service.Authorize(context.Background(), "org", "user", ManagePeople); !errors.Is(err, ErrForbidden) {
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageRent); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("expected forbidden, got %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ViewRent); err != nil {
+		t.Fatalf("expected viewer to read rent, got %v", err)
 	}
 }
 

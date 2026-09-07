@@ -7,18 +7,22 @@ Organization
   |
   +-- Memberships -- Users
   |
-  +-- Properties
-        |
-        +-- Units
-              |
-              +-- Tenancies
-                    |
-                    +-- Tenancy tenants -- Tenants
-                    |
-                    +-- Leases
-                          |
-                          +-- Rent obligations
-                          +-- Payments / allocations
+  +-- Owners -- Ownership interests -- Properties
+  |                                  |
+  |                                  +-- Units
+  |                                        |
+  |                                        +-- Tenancies
+  |                                              |
+  |                                              +-- Tenancy tenants -- Tenants
+  |                                              |
+  |                                              +-- Leases
+  |                                                    |
+  |                                                    +-- Rent obligations
+  |                                                          ^
+  |                                                          |
+  |                                                    Payment allocations
+  |                                                          |
+  +------------------------------------------------------ Payments
 
 Property / Unit / Tenancy
   |
@@ -31,54 +35,63 @@ Property / Unit / Tenancy
 
 The SaaS tenant. A property-management company, landlord business, or other portfolio operator is represented as an organization.
 
-Users gain access through `organization_memberships`. Membership role is verified server-side on each business request. The current generalized permissions are:
+Users gain access through `organization_memberships`. Membership role is verified server-side on every business request. Current generalized permissions are:
 
-- `admin`, `manager`: portfolio, people, and leasing read/write
-- `accountant`, `viewer`: read-only portfolio/people/leasing views
+- `admin`, `manager`: read/write across implemented organization modules
+- `accountant`: read portfolio/people/leasing/owners and manage rent operations
+- `viewer`: read-only portfolio/people/leasing/owners/rent
 - `maintenance`: portfolio read access
-- `owner`: no generalized organization access until owner-resource scoping is implemented
+- `owner`: no generalized organization access until owned-property resource scoping is implemented
 
-Development identity headers are only an adapter for local identity injection; they do not bypass membership checks.
+Development identity headers only inject local identity; they do not bypass membership or role checks.
 
-## Property
+## Property and unit
 
-A physical managed asset such as a house, apartment building, commercial property, or other real-estate asset. A property can contain one or more units.
+A property is a physical managed asset. A unit is the rentable/occupiable entity within that asset. Single-family assets can still use one unit so occupancy and lease rules remain consistent.
 
-## Unit
+Only one tenancy may be `active` for a unit at a time. PostgreSQL enforces this with a partial unique index.
 
-The rentable/occupiable entity. A single-family house may still be represented with a single unit so leasing and occupancy logic stays consistent.
+## Owner and ownership interest
 
-Only one tenancy may be in `active` state for a unit at a time. PostgreSQL enforces this invariant with a partial unique index.
+An owner is a person or legal entity with economic ownership in a property. It is deliberately separate from an application user or organization membership.
 
-## Owner
+An `ownership_interest` links an owner to a property using **basis points**:
 
-A person or legal entity with an ownership interest in one or more properties. Ownership percentages and effective dates remain a separate upcoming domain from organization membership and portal access.
+```text
+10,000 bps = 100.00%
+ 5,000 bps =  50.00%
+    25 bps =   0.25%
+```
+
+Interests have effective dates so historical ownership can be preserved. Creating a current interest locks the property row, sums current open interests, and rejects any change that would push total current ownership above 100%.
+
+Portal access for an owner will later be resource-scoped to the properties that owner is authorized to see; ownership data alone does not automatically grant login access.
 
 ## Tenant
 
-A person or legal entity entering a tenancy. Tenant identity is distinct from a portal login so a tenant record can exist before an account is invited and remain historically valid if login identities change.
+A person or legal entity entering a tenancy. Tenant identity is distinct from portal login identity so a tenant can exist before receiving an account and remain historically valid if authentication identities change.
 
 Current lifecycle:
 
 `prospect -> active -> former`
 
-`blocked` is an exceptional state that prevents creating new tenancy relationships.
+`blocked` is an exceptional state that prevents new tenancy relationships.
 
 ## Tenancy
 
-Represents the occupancy/business relationship for a unit. It connects one or more tenants to a unit and provides continuity across lease renewals.
+The occupancy/business relationship for a unit. It connects one or more tenants to a unit and remains continuous across lease renewals.
 
-A tenancy has exactly one primary tenant and can have additional occupants through `tenancy_tenants`.
+A tenancy has exactly one primary tenant and may have additional occupants through `tenancy_tenants`.
 
 Current lifecycle:
 
 `upcoming -> active -> ended`
 
-`cancelled` is an exceptional terminal state. Activating a tenancy marks the unit occupied. Ending/cancelling an active tenancy releases the unit to vacant state.
+`cancelled` is an exceptional terminal state. Activating a tenancy marks the unit occupied. Ending/cancelling an active tenancy releases the unit.
 
 ## Lease
 
-The contractual terms for a tenancy over a defined period. A tenancy can have multiple historical leases, but only one lease can be active at once.
+The contractual terms for a tenancy over a defined period. A tenancy may have multiple historical leases, but only one lease can be active at once.
 
 Current lifecycle:
 
@@ -89,24 +102,61 @@ Exceptional paths:
 - `draft -> cancelled`
 - `active -> terminated`
 
-Final states are immutable through the normal status-transition service.
+Lease rent and deposit amounts are stored as integer **minor units** (`BIGINT`), never floating point. LKR 150,000.00 is stored as `15000000` minor units.
 
-Lease rent and deposit amounts are stored as integer **minor units** (`BIGINT`), never floating-point values. For example, LKR 150,000.00 is stored as `15000000` minor units. This keeps future rent obligations, allocations, credits, and arrears deterministic.
+## Rent obligation
 
-## Rent ledger
+A rent obligation represents one lease-backed receivable for one month. The client supplies only the active lease and period; the backend derives amount, currency, and due day from the lease.
 
-Rent will not be represented only by fields such as `monthly_rent` and `paid`. The financial model will use obligations, transactions, allocations, credits, and adjustments so arrears and historical balances can be reconstructed.
+There can be only one obligation per organization/lease/month. The due day is capped to the last valid day of short months.
+
+Obligation financial state is not stored as `paid=true`. It is derived:
+
+```text
+allocated = SUM(payment_allocations.amount_minor)
+balance   = obligation.amount_minor - allocated
+
+void      -> obligation record explicitly voided
+paid      -> allocated >= amount
+overdue   -> balance > 0 and current date > due date
+open      -> balance > 0 and not overdue
+```
+
+## Payment
+
+A payment is an immutable posted cash receipt tied to a tenant. It records amount, currency, received date, method, and optional external reference.
+
+The unallocated payment balance is derived from allocations:
+
+```text
+unallocated = payment.amount_minor - SUM(payment_allocations.amount_minor)
+```
+
+Future reversals should be explicit accounting events, not silent edits to a posted payment.
+
+## Payment allocation
+
+An allocation applies some or all of a payment to a rent obligation. Multiple allocations can be created, allowing partial payments and incremental allocation.
+
+During allocation the backend locks both the payment and obligation rows and verifies:
+
+- payment is posted
+- obligation is not void
+- currencies match
+- payment tenant belongs to the obligation tenancy
+- allocation does not exceed remaining payment balance
+- allocation does not exceed remaining obligation balance
+
+This protects the ledger from concurrent double allocation and overpayment races.
 
 Example:
 
 ```text
-Rent obligation: 10,000,000 minor units
-Payment:          6,000,000 minor units
-Allocation:       6,000,000 -> obligation
-Outstanding:      4,000,000 minor units
+Rent obligation: LKR 150,000
+Payment:         LKR 100,000
+Allocation:      LKR 100,000
+Outstanding:     LKR  50,000
 ```
-
-The Go backend will be authoritative for balances and status.
 
 ## Maintenance
 
@@ -122,20 +172,22 @@ Security-sensitive and financially relevant actions produce immutable audit even
 
 ## Implementation sequence
 
-Completed foundation:
+Completed:
 
 1. Organizations, users, membership schema
 2. Properties and units
 3. Membership/RBAC authorization boundary
 4. Tenants and tenancies
 5. Leases
+6. Owners and ownership interests
+7. Rent obligations
+8. Payments and allocations
 
 Next:
 
-6. Owners and ownership interests
-7. Rent obligations and ledger
-8. Payments and allocations
-9. Maintenance and vendors
-10. Documents and notifications
-11. Owner/tenant portal resource scoping
-12. Reporting and automation/integration workflows
+9. Maintenance requests, vendors, work orders, quotes, approvals
+10. Production OIDC/JWT adapter
+11. Documents and notifications
+12. Owner/tenant portal resource scoping
+13. Financial adjustments, reversals, deposits, owner statements, reconciliation
+14. Reporting and automation/integration workflows

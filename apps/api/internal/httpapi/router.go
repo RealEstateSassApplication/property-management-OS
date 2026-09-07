@@ -6,7 +6,9 @@ import (
 
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/auth"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenancies"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenants"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/units"
@@ -19,6 +21,8 @@ type Dependencies struct {
 	Tenants                  *tenants.Service
 	Tenancies                *tenancies.Service
 	Leases                   *leases.Service
+	Owners                   *owners.Service
+	Rent                     *rent.Service
 	AllowDevelopmentIdentity bool
 }
 
@@ -90,6 +94,24 @@ func (r *Router) routes(deps Dependencies) {
 		r.mux.Handle("POST /api/v1/leases", protect(auth.ManageLeases, h.create))
 		r.mux.Handle("GET /api/v1/leases/{leaseID}", protect(auth.ViewLeases, h.get))
 		r.mux.Handle("PATCH /api/v1/leases/{leaseID}", protect(auth.ManageLeases, h.update))
+	}
+
+	if deps.Owners != nil {
+		h := ownerHandler{service: deps.Owners}
+		r.mux.Handle("GET /api/v1/owners", protect(auth.ViewOwners, h.list))
+		r.mux.Handle("POST /api/v1/owners", protect(auth.ManageOwners, h.create))
+		r.mux.Handle("GET /api/v1/owners/{ownerID}", protect(auth.ViewOwners, h.get))
+		r.mux.Handle("GET /api/v1/ownership-interests", protect(auth.ViewOwners, h.listInterests))
+		r.mux.Handle("POST /api/v1/ownership-interests", protect(auth.ManageOwners, h.createInterest))
+	}
+
+	if deps.Rent != nil {
+		h := rentHandler{service: deps.Rent}
+		r.mux.Handle("GET /api/v1/rent/obligations", protect(auth.ViewRent, h.listObligations))
+		r.mux.Handle("POST /api/v1/rent/obligations", protect(auth.ManageRent, h.createObligation))
+		r.mux.Handle("GET /api/v1/rent/payments", protect(auth.ViewRent, h.listPayments))
+		r.mux.Handle("POST /api/v1/rent/payments", protect(auth.ManageRent, h.createPayment))
+		r.mux.Handle("POST /api/v1/rent/allocations", protect(auth.ManageRent, h.createAllocation))
 	}
 }
 

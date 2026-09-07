@@ -29,8 +29,10 @@ func roleAllows(role string, permission Permission) bool {
 	switch role {
 	case "admin", "manager":
 		return true
-	case "accountant", "viewer":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases
+	case "accountant":
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent
+	case "viewer":
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent
 	case "maintenance":
 		return permission == ViewPortfolio
 	case "owner":

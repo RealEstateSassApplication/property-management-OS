@@ -76,3 +76,59 @@ INSERT INTO leases (
     15000000, 30000000, 'LKR', 1, 'active'
 )
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO owners (id, organization_id, legal_name, owner_type, email, phone, status)
+VALUES (
+    '99999999-9999-9999-9999-999999999999',
+    '11111111-1111-1111-1111-111111111111',
+    'Avara Capital Holdings', 'company', 'owners@example.com', '+94 11 555 0101', 'active'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO ownership_interests (
+    id, organization_id, property_id, owner_id, ownership_bps, effective_from
+) VALUES (
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    '11111111-1111-1111-1111-111111111111',
+    '33333333-3333-3333-3333-333333333333',
+    '99999999-9999-9999-9999-999999999999',
+    10000, '2026-01-01'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rent_obligations (
+    id, organization_id, lease_id, period_start, due_date, amount_minor, currency, status
+)
+SELECT
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    l.organization_id,
+    l.id,
+    '2026-09-01'::date,
+    '2026-09-01'::date,
+    l.rent_amount_minor,
+    l.currency,
+    'open'
+FROM leases l
+WHERE l.id = '88888888-8888-8888-8888-888888888888'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO payments (
+    id, organization_id, tenant_id, amount_minor, currency, received_at, method, reference_code, status
+) VALUES (
+    'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    '11111111-1111-1111-1111-111111111111',
+    '66666666-6666-6666-6666-666666666666',
+    10000000, 'LKR', '2026-09-07', 'bank_transfer', 'DEV-PAY-001', 'posted'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO payment_allocations (
+    id, organization_id, payment_id, obligation_id, amount_minor
+) VALUES (
+    'dddddddd-dddd-dddd-dddd-dddddddddddd',
+    '11111111-1111-1111-1111-111111111111',
+    'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    10000000
+)
+ON CONFLICT (id) DO NOTHING;
