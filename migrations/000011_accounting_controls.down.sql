@@ -3,4 +3,8 @@ DROP TABLE IF EXISTS property_expenses;
 DROP TABLE IF EXISTS security_deposit_transactions;
 DROP TABLE IF EXISTS security_deposit_accounts;
 DROP TABLE IF EXISTS payment_reversals;
+DROP TRIGGER IF EXISTS rent_adjustments_apply_to_obligation ON rent_adjustments;
+DROP FUNCTION IF EXISTS apply_rent_adjustment_to_obligation();
 DROP TABLE IF EXISTS rent_adjustments;
+ALTER TABLE rent_obligations DROP CONSTRAINT IF EXISTS rent_obligations_base_amount_positive;
+ALTER TABLE rent_obligations DROP COLUMN IF EXISTS base_amount_minor;
