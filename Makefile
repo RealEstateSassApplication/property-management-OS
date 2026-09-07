@@ -1,4 +1,13 @@
-.PHONY: db-up db-down migrate-up migrate-people migrate-finance migrate-maintenance migrate-identity migrate-documents migrate-notifications migrate-agent-actions migrate-portals migrate-org-settings migrate-accounting migrate-inspections migrate-payment-providers migrate-all migrate-down migrate-payment-providers-down migrate-inspections-down migrate-accounting-down migrate-org-settings-down migrate-portals-down migrate-agent-actions-down migrate-notifications-down migrate-documents-down migrate-identity-down migrate-maintenance-down migrate-finance-down migrate-people-down seed api worker mcp web test-api build-api build-web
+.PHONY: dev-setup dev dev-stop db-up db-down migrate-up migrate-people migrate-finance migrate-maintenance migrate-identity migrate-documents migrate-notifications migrate-agent-actions migrate-portals migrate-org-settings migrate-accounting migrate-inspections migrate-payment-providers migrate-all migrate-down migrate-payment-providers-down migrate-inspections-down migrate-accounting-down migrate-org-settings-down migrate-portals-down migrate-agent-actions-down migrate-notifications-down migrate-documents-down migrate-identity-down migrate-maintenance-down migrate-finance-down migrate-people-down seed api worker mcp web test-api build-api build-web
+
+dev-setup:
+	sh scripts/dev-setup.sh
+
+dev:
+	sh scripts/dev-run.sh
+
+dev-stop:
+	docker compose down
 
 db-up:
 	docker compose up -d postgres
