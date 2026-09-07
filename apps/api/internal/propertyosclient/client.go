@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/agentactions"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
@@ -55,14 +56,23 @@ func (c *Client) ListLeases(ctx context.Context) ([]leases.Lease, error) {
 func (c *Client) ListMaintenanceRequests(ctx context.Context) ([]maintenance.Request, error) {
 	return getList[maintenance.Request](ctx, c, "/api/v1/maintenance/requests")
 }
+func (c *Client) ListMaintenanceQuotes(ctx context.Context) ([]maintenance.Quote, error) {
+	return getList[maintenance.Quote](ctx, c, "/api/v1/maintenance/quotes")
+}
 func (c *Client) ListNotifications(ctx context.Context) ([]notifications.Notification, error) {
 	return getList[notifications.Notification](ctx, c, "/api/v1/notifications")
+}
+func (c *Client) ListAgentActions(ctx context.Context) ([]agentactions.ActionRequest, error) {
+	return getList[agentactions.ActionRequest](ctx, c, "/api/v1/agent-actions")
 }
 func (c *Client) QueueRentReminder(ctx context.Context, input notifications.RentReminderInput) (notifications.Notification, error) {
 	return postOne[notifications.RentReminderInput, notifications.Notification](ctx, c, "/api/v1/notifications/rent-reminders", input)
 }
 func (c *Client) CreateMaintenanceRequest(ctx context.Context, input maintenance.CreateRequestInput) (maintenance.Request, error) {
 	return postOne[maintenance.CreateRequestInput, maintenance.Request](ctx, c, "/api/v1/maintenance/requests", input)
+}
+func (c *Client) ProposeMaintenanceQuoteApproval(ctx context.Context, input agentactions.ProposeQuoteApprovalInput) (agentactions.ActionRequest, error) {
+	return postOne[agentactions.ProposeQuoteApprovalInput, agentactions.ActionRequest](ctx, c, "/api/v1/agent-actions/maintenance-quote-approvals", input)
 }
 
 func getList[T any](ctx context.Context, client *Client, path string) ([]T, error) {
