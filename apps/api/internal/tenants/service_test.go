@@ -10,7 +10,7 @@ type fakeRepository struct {
 	createCalls int
 }
 
-func (f *fakeRepository) List(context.Context, string) ([]Tenant, error) { return nil, nil }
+func (f *fakeRepository) List(context.Context, string) ([]Tenant, error)      { return nil, nil }
 func (f *fakeRepository) Get(context.Context, string, string) (Tenant, error) { return Tenant{}, nil }
 func (f *fakeRepository) Update(context.Context, string, string, UpdateInput) (Tenant, error) {
 	return Tenant{}, nil
