@@ -10,11 +10,18 @@ type fakeRepository struct {
 	createCalls int
 }
 
-func (f *fakeRepository) List(context.Context, string) ([]Property, error) { return nil, nil }
-func (f *fakeRepository) Get(context.Context, string, string) (Property, error) { return Property{}, nil }
+func (f *fakeRepository) List(context.Context, string) ([]Property, error) {
+	return nil, nil
+}
+
+func (f *fakeRepository) Get(context.Context, string, string) (Property, error) {
+	return Property{}, nil
+}
+
 func (f *fakeRepository) Update(context.Context, string, string, UpdateInput) (Property, error) {
 	return Property{}, nil
 }
+
 func (f *fakeRepository) Create(_ context.Context, organizationID string, input CreateInput) (Property, error) {
 	f.createCalls++
 	f.createInput = input
