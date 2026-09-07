@@ -93,11 +93,12 @@ jobs:
       - name: Verify notification outbox seed
         env: { PGPASSWORD: property_os }
         run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT topic || ':' || channel || ':' || status FROM notification_outbox WHERE id='16161616-1616-1616-1616-161616161616'")" = "rent.reminder:email:pending"
-      - name: Verify agent role and action schema
+      - name: Verify agent role and approval demo fixture
         env: { PGPASSWORD: property_os }
         run: |
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT role FROM organization_memberships WHERE user_id='17171717-1717-1717-1717-171717171717'")" = "agent"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT to_regclass('public.agent_action_requests') IS NOT NULL")" = "t"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT status || ':' || amount_minor || ':' || currency FROM maintenance_quotes WHERE id='20202020-2020-2020-2020-202020202020'")" = "submitted:2750000:LKR"
 
   web:
     name: Next.js web
