@@ -25,13 +25,13 @@ type Dashboard struct {
 }
 
 type AuditEvent struct {
-	ID             string          `json:"id"`
-	ActorUserID    string          `json:"actorUserId,omitempty"`
-	ActorName      string          `json:"actorName,omitempty"`
-	Action         string          `json:"action"`
-	ResourceType   string          `json:"resourceType"`
-	ResourceID     string          `json:"resourceId,omitempty"`
-	RequestID      string          `json:"requestId,omitempty"`
-	Metadata       json.RawMessage `json:"metadata"`
-	OccurredAt     time.Time       `json:"occurredAt"`
+	ID           string          `json:"id"`
+	ActorUserID  string          `json:"actorUserId,omitempty"`
+	ActorName    string          `json:"actorName,omitempty"`
+	Action       string          `json:"action"`
+	ResourceType string          `json:"resourceType"`
+	ResourceID   string          `json:"resourceId,omitempty"`
+	RequestID    string          `json:"requestId,omitempty"`
+	Metadata     json.RawMessage `json:"metadata"`
+	OccurredAt   time.Time       `json:"occurredAt"`
 }
