@@ -18,22 +18,22 @@ type Vendor struct {
 }
 
 type Request struct {
-	ID             string    `json:"id"`
-	OrganizationID string    `json:"organizationId"`
-	PropertyID     string    `json:"propertyId"`
-	PropertyName   string    `json:"propertyName"`
-	UnitID         string    `json:"unitId,omitempty"`
-	UnitLabel      string    `json:"unitLabel,omitempty"`
-	TenantID       string    `json:"tenantId,omitempty"`
-	TenantName     string    `json:"tenantName,omitempty"`
-	Title          string    `json:"title"`
-	Description    string    `json:"description"`
-	Category       string    `json:"category"`
-	Priority       string    `json:"priority"`
-	Status         string    `json:"status"`
+	ID             string     `json:"id"`
+	OrganizationID string     `json:"organizationId"`
+	PropertyID     string     `json:"propertyId"`
+	PropertyName   string     `json:"propertyName"`
+	UnitID         string     `json:"unitId,omitempty"`
+	UnitLabel      string     `json:"unitLabel,omitempty"`
+	TenantID       string     `json:"tenantId,omitempty"`
+	TenantName     string     `json:"tenantName,omitempty"`
+	Title          string     `json:"title"`
+	Description    string     `json:"description"`
+	Category       string     `json:"category"`
+	Priority       string     `json:"priority"`
+	Status         string     `json:"status"`
 	ResolvedAt     *time.Time `json:"resolvedAt,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
 }
 
 type WorkOrder struct {
@@ -138,20 +138,20 @@ type CreateEvidenceInput struct {
 }
 
 var (
-	ErrPropertyNotFound          = errors.New("property not found")
-	ErrUnitNotFound              = errors.New("unit not found for property")
-	ErrTenantNotFound            = errors.New("tenant not found")
-	ErrTenantNotOccupant         = errors.New("tenant is not an active occupant of the selected unit")
-	ErrVendorNotFound            = errors.New("vendor not found")
-	ErrVendorInactive            = errors.New("vendor is inactive")
-	ErrRequestNotFound           = errors.New("maintenance request not found")
-	ErrRequestClosed             = errors.New("maintenance request is already closed")
-	ErrInvalidRequestTransition  = errors.New("invalid maintenance request status transition")
-	ErrWorkOrderNotFound         = errors.New("work order not found")
+	ErrPropertyNotFound           = errors.New("property not found")
+	ErrUnitNotFound               = errors.New("unit not found for property")
+	ErrTenantNotFound             = errors.New("tenant not found")
+	ErrTenantNotOccupant          = errors.New("tenant is not an active occupant of the selected unit")
+	ErrVendorNotFound             = errors.New("vendor not found")
+	ErrVendorInactive             = errors.New("vendor is inactive")
+	ErrRequestNotFound            = errors.New("maintenance request not found")
+	ErrRequestClosed              = errors.New("maintenance request is already closed")
+	ErrInvalidRequestTransition   = errors.New("invalid maintenance request status transition")
+	ErrWorkOrderNotFound          = errors.New("work order not found")
 	ErrInvalidWorkOrderTransition = errors.New("invalid work order status transition")
 	ErrCompletionEvidenceRequired = errors.New("completion evidence is required before completing a work order")
-	ErrQuoteNotFound             = errors.New("maintenance quote not found")
-	ErrQuoteNotSubmitted         = errors.New("only submitted quotes can be decided")
-	ErrApprovedQuoteExists       = errors.New("an approved quote already exists for this work order")
-	ErrWorkOrderClosed           = errors.New("work order is already completed or cancelled")
+	ErrQuoteNotFound              = errors.New("maintenance quote not found")
+	ErrQuoteNotSubmitted          = errors.New("only submitted quotes can be decided")
+	ErrApprovedQuoteExists        = errors.New("an approved quote already exists for this work order")
+	ErrWorkOrderClosed            = errors.New("work order is already completed or cancelled")
 )
