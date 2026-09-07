@@ -11,6 +11,7 @@ import (
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/portals"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenancies"
@@ -32,6 +33,7 @@ type Dependencies struct {
 	Documents                *documents.Service
 	Notifications            *notifications.Service
 	AgentActions             *agentactions.Service
+	Portals                  *portals.Service
 	AllowDevelopmentIdentity bool
 }
 
@@ -139,6 +141,12 @@ func (r *Router) routes(deps Dependencies) {
 		r.mux.Handle("GET /api/v1/agent-actions", protect(auth.ViewAgentActions, h.list))
 		r.mux.Handle("POST /api/v1/agent-actions/maintenance-quote-approvals", protect(auth.ProposeAgentActions, h.proposeQuoteApproval))
 		r.mux.Handle("POST /api/v1/agent-actions/{actionID}/decision", protect(auth.DecideAgentActions, h.decide))
+	}
+	if deps.Portals != nil {
+		h := portalHandler{service: deps.Portals}
+		r.mux.Handle("GET /api/v1/portal/owner", protect(auth.ViewOwnerPortal, h.ownerSummary))
+		r.mux.Handle("GET /api/v1/portal/tenant", protect(auth.ViewTenantPortal, h.tenantSummary))
+		r.mux.Handle("POST /api/v1/portal/tenant/maintenance-requests", protect(auth.CreateTenantPortalRequest, h.createTenantMaintenance))
 	}
 }
 
