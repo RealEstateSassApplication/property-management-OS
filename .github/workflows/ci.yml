@@ -29,16 +29,11 @@ jobs:
             gofmt -d .
             exit 1
           fi
-      - name: Resolve MCP module metadata for bootstrap
+      - name: Verify module metadata
         working-directory: apps/api
         run: |
           go mod tidy
-          echo '---BEGIN RESOLVED GO.MOD---'
-          cat go.mod
-          echo '---END RESOLVED GO.MOD---'
-          echo '---BEGIN RESOLVED GO.SUM---'
-          cat go.sum
-          echo '---END RESOLVED GO.SUM---'
+          git diff --exit-code -- go.mod go.sum
       - name: Test
         working-directory: apps/api
         run: go test ./...
