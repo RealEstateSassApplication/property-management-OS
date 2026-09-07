@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { completeDocumentUpload } from "../../../../../lib/documents";
+import { completeDocumentUpload } from "../../../../lib/documents";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ documentID: string }> }) {
   try {
