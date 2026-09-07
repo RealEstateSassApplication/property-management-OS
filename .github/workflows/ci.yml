@@ -21,7 +21,12 @@ jobs:
       - name: Format check
         working-directory: apps/api
         run: |
-          test -z "$(gofmt -l .)"
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            echo "Go files require gofmt:"
+            echo "$files"
+            exit 1
+          fi
       - name: Test
         working-directory: apps/api
         run: go test ./...
