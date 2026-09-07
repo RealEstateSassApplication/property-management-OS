@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Property Management OS API
-  version: 0.1.0
+  version: 0.2.0
   description: Contract for the Property Management OS backend.
 servers:
   - url: http://localhost:8080
@@ -29,7 +29,203 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiInfo'
+  /api/v1/properties:
+    parameters:
+      - $ref: '#/components/parameters/DevelopmentOrganizationHeader'
+    get:
+      operationId: listProperties
+      summary: List organization properties
+      responses:
+        '200':
+          description: Property collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Property'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createProperty
+      summary: Create a managed property
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProperty'
+      responses:
+        '201':
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/properties/{propertyID}:
+    parameters:
+      - $ref: '#/components/parameters/DevelopmentOrganizationHeader'
+      - name: propertyID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getProperty
+      summary: Get one organization-scoped property
+      responses:
+        '200':
+          description: Property
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateProperty
+      summary: Update one organization-scoped property
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProperty'
+      responses:
+        '200':
+          description: Updated property
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/properties/{propertyID}/units:
+    parameters:
+      - $ref: '#/components/parameters/DevelopmentOrganizationHeader'
+      - name: propertyID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listPropertyUnits
+      summary: List units in an organization-scoped property
+      responses:
+        '200':
+          description: Unit collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Unit'
+    post:
+      operationId: createUnit
+      summary: Create a unit inside a property
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnit'
+      responses:
+        '201':
+          description: Unit created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/units/{unitID}:
+    parameters:
+      - $ref: '#/components/parameters/DevelopmentOrganizationHeader'
+      - name: unitID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getUnit
+      summary: Get one organization-scoped unit
+      responses:
+        '200':
+          description: Unit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateUnit
+      summary: Update one organization-scoped unit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUnit'
+      responses:
+        '200':
+          description: Updated unit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
+  parameters:
+    DevelopmentOrganizationHeader:
+      name: X-Organization-ID
+      in: header
+      required: true
+      description: Development-only organization context. Production will replace this with authenticated organization context.
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Organization context is missing
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Resource does not exist in this organization
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
     HealthResponse:
       type: object
@@ -51,6 +247,12 @@ components:
           type: string
         version:
           type: string
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/Problem'
     Problem:
       type: object
       required: [code, message]
@@ -59,5 +261,117 @@ components:
           type: string
         message:
           type: string
-        requestId:
+    PropertyEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Property'
+    Property:
+      type: object
+      required: [id, organizationId, name, propertyType, addressLine1, city, countryCode, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        referenceCode: { type: [string, 'null'] }
+        name: { type: string }
+        propertyType:
           type: string
+          enum: [house, apartment, building, commercial, land, other]
+        addressLine1: { type: string }
+        addressLine2: { type: [string, 'null'] }
+        city: { type: string }
+        region: { type: [string, 'null'] }
+        postalCode: { type: [string, 'null'] }
+        countryCode: { type: string, minLength: 2, maxLength: 2 }
+        status:
+          type: string
+          enum: [active, inactive, archived]
+        externalAvaraPropertyId: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateProperty:
+      type: object
+      required: [name, propertyType, addressLine1, city, countryCode]
+      properties:
+        referenceCode: { type: [string, 'null'] }
+        name: { type: string, minLength: 1 }
+        propertyType:
+          type: string
+          enum: [house, apartment, building, commercial, land, other]
+        addressLine1: { type: string, minLength: 1 }
+        addressLine2: { type: [string, 'null'] }
+        city: { type: string, minLength: 1 }
+        region: { type: [string, 'null'] }
+        postalCode: { type: [string, 'null'] }
+        countryCode: { type: string, minLength: 2, maxLength: 2 }
+        externalAvaraPropertyId: { type: [string, 'null'] }
+    UpdateProperty:
+      type: object
+      properties:
+        referenceCode: { type: [string, 'null'] }
+        name: { type: string, minLength: 1 }
+        propertyType:
+          type: string
+          enum: [house, apartment, building, commercial, land, other]
+        addressLine1: { type: string, minLength: 1 }
+        addressLine2: { type: [string, 'null'] }
+        city: { type: string, minLength: 1 }
+        region: { type: [string, 'null'] }
+        postalCode: { type: [string, 'null'] }
+        countryCode: { type: string, minLength: 2, maxLength: 2 }
+        status:
+          type: string
+          enum: [active, inactive, archived]
+    UnitEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Unit'
+    Unit:
+      type: object
+      required: [id, organizationId, propertyId, referenceCode, label, occupancyStatus, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        propertyId: { type: string, format: uuid }
+        referenceCode: { type: string }
+        label: { type: string }
+        bedrooms: { type: [number, 'null'], minimum: 0 }
+        bathrooms: { type: [number, 'null'], minimum: 0 }
+        floorArea: { type: [number, 'null'], minimum: 0 }
+        floorAreaUnit:
+          type: [string, 'null']
+          enum: [sqft, sqm, null]
+        occupancyStatus:
+          type: string
+          enum: [vacant, occupied, reserved, unavailable]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateUnit:
+      type: object
+      required: [referenceCode, label]
+      properties:
+        referenceCode: { type: string, minLength: 1 }
+        label: { type: string, minLength: 1 }
+        bedrooms: { type: [number, 'null'], minimum: 0 }
+        bathrooms: { type: [number, 'null'], minimum: 0 }
+        floorArea: { type: [number, 'null'], minimum: 0 }
+        floorAreaUnit:
+          type: [string, 'null']
+          enum: [sqft, sqm, null]
+    UpdateUnit:
+      type: object
+      properties:
+        referenceCode: { type: string, minLength: 1 }
+        label: { type: string, minLength: 1 }
+        bedrooms: { type: number, minimum: 0 }
+        bathrooms: { type: number, minimum: 0 }
+        floorArea: { type: number, minimum: 0 }
+        floorAreaUnit:
+          type: string
+          enum: [sqft, sqm]
+        occupancyStatus:
+          type: string
+          enum: [vacant, occupied, reserved, unavailable]
