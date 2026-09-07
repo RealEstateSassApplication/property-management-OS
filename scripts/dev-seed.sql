@@ -132,3 +132,64 @@ INSERT INTO payment_allocations (
     10000000
 )
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO vendors (id, organization_id, name, trade, email, phone, status)
+VALUES (
+    'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    '11111111-1111-1111-1111-111111111111',
+    'Colombo Rapid Plumbing', 'plumbing', 'dispatch@rapidplumbing.example', '+94 77 555 0202', 'active'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO maintenance_requests (
+    id, organization_id, property_id, unit_id, tenant_id, reported_by_user_id,
+    title, description, category, priority, status, resolved_at
+) VALUES (
+    'ffffffff-ffff-ffff-ffff-ffffffffffff',
+    '11111111-1111-1111-1111-111111111111',
+    '33333333-3333-3333-3333-333333333333',
+    '44444444-4444-4444-4444-444444444444',
+    '66666666-6666-6666-6666-666666666666',
+    '22222222-2222-2222-2222-222222222222',
+    'Kitchen sink leak', 'Water was leaking below the kitchen sink cabinet.',
+    'plumbing', 'high', 'resolved', '2026-09-07T06:30:00Z'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO work_orders (
+    id, organization_id, maintenance_request_id, vendor_id, summary, status,
+    scheduled_for, started_at, completed_at
+) VALUES (
+    '12121212-1212-1212-1212-121212121212',
+    '11111111-1111-1111-1111-111111111111',
+    'ffffffff-ffff-ffff-ffff-ffffffffffff',
+    'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    'Replace failed sink trap and reseal connection', 'completed',
+    '2026-09-07T05:00:00Z', '2026-09-07T05:10:00Z', '2026-09-07T06:20:00Z'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO maintenance_quotes (
+    id, organization_id, work_order_id, vendor_id, amount_minor, currency,
+    scope_summary, status, submitted_at, reviewed_at, reviewed_by_user_id
+) VALUES (
+    '13131313-1313-1313-1313-131313131313',
+    '11111111-1111-1111-1111-111111111111',
+    '12121212-1212-1212-1212-121212121212',
+    'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    1850000, 'LKR', 'Replace sink trap, fittings, sealant and test for leaks.',
+    'approved', '2026-09-07T04:30:00Z', '2026-09-07T04:40:00Z',
+    '22222222-2222-2222-2222-222222222222'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO maintenance_completion_evidence (
+    id, organization_id, work_order_id, evidence_type, note, submitted_by_user_id
+) VALUES (
+    '14141414-1414-1414-1414-141414141414',
+    '11111111-1111-1111-1111-111111111111',
+    '12121212-1212-1212-1212-121212121212',
+    'note', 'Sink trap replaced and cabinet area remained dry after a 15-minute flow test.',
+    '22222222-2222-2222-2222-222222222222'
+)
+ON CONFLICT (id) DO NOTHING;
