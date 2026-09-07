@@ -21,6 +21,7 @@ import (
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/portals"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenancies"
@@ -93,8 +94,16 @@ func main() {
 	documentService := documents.NewService(documents.NewPostgresRepository(pool), documentStorage)
 	notificationService := notifications.NewService(notifications.NewPostgresRepository(pool))
 	agentActionService := agentactions.NewService(agentactions.NewPostgresRepository(pool), agentactions.NewMaintenanceExecutor(maintenanceService))
+	portalService := portals.NewService(portals.NewPostgresRepository(pool), maintenanceService)
 
-	handler := httpapi.NewRouter(httpapi.Dependencies{Authentication: authenticationService, Authorization: authorizationService, Properties: propertyService, Units: unitService, Tenants: tenantService, Tenancies: tenancyService, Leases: leaseService, Owners: ownerService, Rent: rentService, Maintenance: maintenanceService, Documents: documentService, Notifications: notificationService, AgentActions: agentActionService, AllowDevelopmentIdentity: allowDevelopmentIdentity})
+	handler := httpapi.NewRouter(httpapi.Dependencies{
+		Authentication: authenticationService, Authorization: authorizationService,
+		Properties: propertyService, Units: unitService, Tenants: tenantService,
+		Tenancies: tenancyService, Leases: leaseService, Owners: ownerService,
+		Rent: rentService, Maintenance: maintenanceService, Documents: documentService,
+		Notifications: notificationService, AgentActions: agentActionService, Portals: portalService,
+		AllowDevelopmentIdentity: allowDevelopmentIdentity,
+	})
 	server := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment, "oidc", authenticationService != nil, "documentStorage", documentStorage != nil)
