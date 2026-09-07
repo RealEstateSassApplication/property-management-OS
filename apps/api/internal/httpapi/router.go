@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/accounting"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/agentactions"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/auth"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/documents"
@@ -31,6 +32,7 @@ type Dependencies struct {
 	Leases                   *leases.Service
 	Owners                   *owners.Service
 	Rent                     *rent.Service
+	Accounting               *accounting.Service
 	Maintenance              *maintenance.Service
 	Documents                *documents.Service
 	Notifications            *notifications.Service
@@ -109,6 +111,21 @@ func (r *Router) routes(deps Dependencies) {
 		r.mux.Handle("GET /api/v1/rent/payments", protect(auth.ViewRent, h.listPayments))
 		r.mux.Handle("POST /api/v1/rent/payments", protect(auth.ManageRent, h.createPayment))
 		r.mux.Handle("POST /api/v1/rent/allocations", protect(auth.ManageRent, h.createAllocation))
+	}
+	if deps.Accounting != nil {
+		h := accountingHandler{service: deps.Accounting}
+		r.mux.Handle("GET /api/v1/accounting/rent-adjustments", protect(auth.ViewAccounting, h.listAdjustments))
+		r.mux.Handle("POST /api/v1/accounting/rent-adjustments", protect(auth.ManageAccounting, h.createAdjustment))
+		r.mux.Handle("GET /api/v1/accounting/payment-reversals", protect(auth.ViewAccounting, h.listReversals))
+		r.mux.Handle("POST /api/v1/accounting/payments/{paymentID}/reverse", protect(auth.ManageAccounting, h.reversePayment))
+		r.mux.Handle("GET /api/v1/accounting/security-deposits", protect(auth.ViewAccounting, h.listDepositAccounts))
+		r.mux.Handle("POST /api/v1/accounting/security-deposits", protect(auth.ManageAccounting, h.createDepositAccount))
+		r.mux.Handle("GET /api/v1/accounting/security-deposit-transactions", protect(auth.ViewAccounting, h.listDepositTransactions))
+		r.mux.Handle("POST /api/v1/accounting/security-deposit-transactions", protect(auth.ManageAccounting, h.createDepositTransaction))
+		r.mux.Handle("GET /api/v1/accounting/expenses", protect(auth.ViewAccounting, h.listExpenses))
+		r.mux.Handle("POST /api/v1/accounting/expenses", protect(auth.ManageAccounting, h.createExpense))
+		r.mux.Handle("POST /api/v1/accounting/expenses/{expenseID}/reverse", protect(auth.ManageAccounting, h.reverseExpense))
+		r.mux.Handle("GET /api/v1/accounting/owners/{ownerID}/statement", protect(auth.ViewAccounting, h.ownerStatement))
 	}
 	if deps.Maintenance != nil {
 		h := maintenanceHandler{service: deps.Maintenance}

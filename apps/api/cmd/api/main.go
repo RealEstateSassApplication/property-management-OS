@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/accounting"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/agentactions"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/auth"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/config"
@@ -92,6 +93,7 @@ func main() {
 	leaseService := leases.NewService(leases.NewPostgresRepository(pool))
 	ownerService := owners.NewService(owners.NewPostgresRepository(pool))
 	rentService := rent.NewService(rent.NewPostgresRepository(pool))
+	accountingService := accounting.NewService(accounting.NewPostgresRepository(pool))
 	maintenanceService := maintenance.NewService(maintenance.NewPostgresRepository(pool))
 	documentService := documents.NewService(documents.NewPostgresRepository(pool), documentStorage)
 	notificationService := notifications.NewService(notifications.NewPostgresRepository(pool))
@@ -104,9 +106,9 @@ func main() {
 		Authentication: authenticationService, Authorization: authorizationService,
 		Properties: propertyService, Units: unitService, Tenants: tenantService,
 		Tenancies: tenancyService, Leases: leaseService, Owners: ownerService,
-		Rent: rentService, Maintenance: maintenanceService, Documents: documentService,
-		Notifications: notificationService, AgentActions: agentActionService, Portals: portalService,
-		OrganizationAdmin: organizationAdminService, Reporting: reportingService,
+		Rent: rentService, Accounting: accountingService, Maintenance: maintenanceService,
+		Documents: documentService, Notifications: notificationService, AgentActions: agentActionService,
+		Portals: portalService, OrganizationAdmin: organizationAdminService, Reporting: reportingService,
 		AllowDevelopmentIdentity: allowDevelopmentIdentity,
 	})
 	server := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}

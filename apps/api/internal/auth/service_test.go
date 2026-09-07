@@ -23,15 +23,20 @@ func TestAuthorizeAllowsManager(t *testing.T) {
 	if _, err := service.Authorize(context.Background(), "org", "user", ManageNotifications); err != nil {
 		t.Fatalf("expected manager to manage notifications: %v", err)
 	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ViewAccounting); err != nil {
+		t.Fatalf("expected manager to view accounting: %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageAccounting); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected manager accounting writes to be forbidden, got %v", err)
+	}
 }
 
-func TestAuthorizeAllowsAccountantToManageRentAndApproveMaintenanceCosts(t *testing.T) {
+func TestAuthorizeAllowsAccountantToManageFinanceAndApproveMaintenanceCosts(t *testing.T) {
 	service := NewService(fakeMembershipRepository{membership: Membership{Role: "accountant"}})
-	if _, err := service.Authorize(context.Background(), "org", "user", ManageRent); err != nil {
-		t.Fatalf("expected accountant to manage rent: %v", err)
-	}
-	if _, err := service.Authorize(context.Background(), "org", "user", ApproveMaintenanceCosts); err != nil {
-		t.Fatalf("expected accountant to approve maintenance costs: %v", err)
+	for _, permission := range []Permission{ManageRent, ViewAccounting, ManageAccounting, ApproveMaintenanceCosts} {
+		if _, err := service.Authorize(context.Background(), "org", "user", permission); err != nil {
+			t.Fatalf("expected accountant permission %s to be allowed: %v", permission, err)
+		}
 	}
 	if _, err := service.Authorize(context.Background(), "org", "user", ManageMaintenance); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("expected accountant operational maintenance writes to be forbidden, got %v", err)
@@ -62,6 +67,9 @@ func TestAuthorizeAllowsMaintenanceOperationsButNotCostOrVendorApproval(t *testi
 	if _, err := service.Authorize(context.Background(), "org", "user", ManageMaintenanceVendors); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("expected maintenance vendor management to be forbidden, got %v", err)
 	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ViewAccounting); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected maintenance accounting access to be forbidden, got %v", err)
+	}
 }
 
 func TestAuthorizeAgentGetsReadAndConstrainedActionsOnly(t *testing.T) {
@@ -72,7 +80,7 @@ func TestAuthorizeAgentGetsReadAndConstrainedActionsOnly(t *testing.T) {
 			t.Fatalf("expected agent permission %s to be allowed: %v", permission, err)
 		}
 	}
-	forbidden := []Permission{ManageRent, ManageMaintenance, ApproveMaintenanceCosts, DecideAgentActions, ManageDocuments, ManageNotifications}
+	forbidden := []Permission{ManageRent, ViewAccounting, ManageAccounting, ManageMaintenance, ApproveMaintenanceCosts, DecideAgentActions, ManageDocuments, ManageNotifications}
 	for _, permission := range forbidden {
 		if _, err := service.Authorize(context.Background(), "org", "agent", permission); !errors.Is(err, ErrForbidden) {
 			t.Fatalf("expected agent permission %s to be forbidden, got %v", permission, err)
@@ -88,6 +96,9 @@ func TestAuthorizeRestrictsViewerWrites(t *testing.T) {
 	if _, err := service.Authorize(context.Background(), "org", "user", ViewMaintenance); err != nil {
 		t.Fatalf("expected viewer to read maintenance, got %v", err)
 	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ViewAccounting); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected viewer accounting access to be restricted, got %v", err)
+	}
 	if _, err := service.Authorize(context.Background(), "org", "user", ViewNotifications); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("expected notification delivery register to stay restricted, got %v", err)
 	}
@@ -98,7 +109,7 @@ func TestOwnerRoleCanOnlyEnterOwnerPortal(t *testing.T) {
 	if _, err := service.Authorize(context.Background(), "org", "owner", ViewOwnerPortal); err != nil {
 		t.Fatalf("expected owner portal permission, got %v", err)
 	}
-	for _, permission := range []Permission{ViewPortfolio, ViewOwners, ViewRent, ViewDocuments, ViewTenantPortal} {
+	for _, permission := range []Permission{ViewPortfolio, ViewOwners, ViewRent, ViewAccounting, ViewDocuments, ViewTenantPortal} {
 		if _, err := service.Authorize(context.Background(), "org", "owner", permission); !errors.Is(err, ErrForbidden) {
 			t.Fatalf("expected owner permission %s to be forbidden, got %v", permission, err)
 		}
@@ -112,7 +123,7 @@ func TestTenantRoleCanOnlyUseTenantPortalAndMaintenanceIntake(t *testing.T) {
 			t.Fatalf("expected tenant permission %s to be allowed: %v", permission, err)
 		}
 	}
-	for _, permission := range []Permission{ViewPortfolio, ViewPeople, ViewRent, ViewMaintenance, CreateMaintenanceRequests, ViewOwnerPortal} {
+	for _, permission := range []Permission{ViewPortfolio, ViewPeople, ViewRent, ViewAccounting, ViewMaintenance, CreateMaintenanceRequests, ViewOwnerPortal} {
 		if _, err := service.Authorize(context.Background(), "org", "tenant", permission); !errors.Is(err, ErrForbidden) {
 			t.Fatalf("expected tenant permission %s to be forbidden, got %v", permission, err)
 		}
