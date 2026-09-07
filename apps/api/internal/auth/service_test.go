@@ -93,9 +93,28 @@ func TestAuthorizeRestrictsViewerWrites(t *testing.T) {
 	}
 }
 
-func TestAuthorizeDoesNotGrantGeneralizedOwnerAccess(t *testing.T) {
+func TestOwnerRoleCanOnlyEnterOwnerPortal(t *testing.T) {
 	service := NewService(fakeMembershipRepository{membership: Membership{Role: "owner"}})
-	if _, err := service.Authorize(context.Background(), "org", "user", ViewPortfolio); !errors.Is(err, ErrForbidden) {
-		t.Fatalf("expected owner role to require resource-scoped portal authorization, got %v", err)
+	if _, err := service.Authorize(context.Background(), "org", "owner", ViewOwnerPortal); err != nil {
+		t.Fatalf("expected owner portal permission, got %v", err)
+	}
+	for _, permission := range []Permission{ViewPortfolio, ViewOwners, ViewRent, ViewDocuments, ViewTenantPortal} {
+		if _, err := service.Authorize(context.Background(), "org", "owner", permission); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("expected owner permission %s to be forbidden, got %v", permission, err)
+		}
+	}
+}
+
+func TestTenantRoleCanOnlyUseTenantPortalAndMaintenanceIntake(t *testing.T) {
+	service := NewService(fakeMembershipRepository{membership: Membership{Role: "tenant"}})
+	for _, permission := range []Permission{ViewTenantPortal, CreateTenantPortalRequest} {
+		if _, err := service.Authorize(context.Background(), "org", "tenant", permission); err != nil {
+			t.Fatalf("expected tenant permission %s to be allowed: %v", permission, err)
+		}
+	}
+	for _, permission := range []Permission{ViewPortfolio, ViewPeople, ViewRent, ViewMaintenance, CreateMaintenanceRequests, ViewOwnerPortal} {
+		if _, err := service.Authorize(context.Background(), "org", "tenant", permission); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("expected tenant permission %s to be forbidden, got %v", permission, err)
+		}
 	}
 }
