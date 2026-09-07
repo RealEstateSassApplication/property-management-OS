@@ -11,7 +11,9 @@ import (
 
 type PostgresRepository struct{ pool *pgxpool.Pool }
 
-func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository { return &PostgresRepository{pool: pool} }
+func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
+	return &PostgresRepository{pool: pool}
+}
 
 func (r *PostgresRepository) List(ctx context.Context, organizationID string) ([]Notification, error) {
 	rows, err := r.pool.Query(ctx, `SELECT id, organization_id, COALESCE(actor_user_id::text,''), topic, channel, recipient, COALESCE(subject,''), body, payload, COALESCE(resource_type,''), COALESCE(resource_id::text,''), COALESCE(idempotency_key,''), status, attempt_count, max_attempts, available_at, locked_at, COALESCE(locked_by,''), COALESCE(last_error,''), delivered_at, created_at, updated_at FROM notification_outbox WHERE organization_id=$1 ORDER BY created_at DESC LIMIT 250`, organizationID)
