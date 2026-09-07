@@ -11,6 +11,8 @@ const navigation = [
   { href: "/documents", label: "Documents", enabled: true },
   { href: "/notifications", label: "Notifications", enabled: true },
   { href: "/agent-actions", label: "Agent Review", enabled: true },
+  { href: "/reports", label: "Reports", enabled: true },
+  { href: "/settings", label: "Settings", enabled: true },
 ];
 
 export function AppShell({ children, section = "Portfolio" }: { children: ReactNode; section?: string }) {
