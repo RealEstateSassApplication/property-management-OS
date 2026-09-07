@@ -17,6 +17,7 @@ const (
 	ManageRent               Permission = "rent:manage"
 	ViewMaintenance          Permission = "maintenance:view"
 	ManageMaintenance        Permission = "maintenance:manage"
+	ManageMaintenanceVendors Permission = "maintenance:manage_vendors"
 	ApproveMaintenanceCosts  Permission = "maintenance:approve_costs"
 )
 
