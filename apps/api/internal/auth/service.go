@@ -26,9 +26,9 @@ func roleAllows(role string, permission Permission) bool {
 	case "admin":
 		return true
 	case "manager":
-		return permission != ManageMembers
+		return permission != ManageMembers && permission != ManageAccounting
 	case "accountant":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewMaintenance || permission == ApproveMaintenanceCosts || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == DecideAgentActions || permission == ViewReporting || permission == ViewAudit
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewAccounting || permission == ManageAccounting || permission == ViewMaintenance || permission == ApproveMaintenanceCosts || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == DecideAgentActions || permission == ViewReporting || permission == ViewAudit
 	case "viewer":
 		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ViewMaintenance || permission == ViewReporting
 	case "maintenance":
