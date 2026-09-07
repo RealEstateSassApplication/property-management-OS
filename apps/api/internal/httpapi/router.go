@@ -10,10 +10,12 @@ import (
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/orgadmin"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/portals"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/reporting"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenancies"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenants"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/units"
@@ -34,6 +36,8 @@ type Dependencies struct {
 	Notifications            *notifications.Service
 	AgentActions             *agentactions.Service
 	Portals                  *portals.Service
+	OrganizationAdmin        *orgadmin.Service
+	Reporting                *reporting.Service
 	AllowDevelopmentIdentity bool
 }
 
@@ -147,6 +151,25 @@ func (r *Router) routes(deps Dependencies) {
 		r.mux.Handle("GET /api/v1/portal/owner", protect(auth.ViewOwnerPortal, h.ownerSummary))
 		r.mux.Handle("GET /api/v1/portal/tenant", protect(auth.ViewTenantPortal, h.tenantSummary))
 		r.mux.Handle("POST /api/v1/portal/tenant/maintenance-requests", protect(auth.CreateTenantPortalRequest, h.createTenantMaintenance))
+	}
+	if deps.OrganizationAdmin != nil {
+		h := orgAdminHandler{service: deps.OrganizationAdmin}
+		r.mux.Handle("GET /api/v1/organization", protect(auth.ViewOrganization, h.getSettings))
+		r.mux.Handle("PATCH /api/v1/organization", protect(auth.ManageOrganization, h.updateSettings))
+		r.mux.Handle("GET /api/v1/organization/members", protect(auth.ViewMembers, h.listMembers))
+		r.mux.Handle("POST /api/v1/organization/members", protect(auth.ManageMembers, h.createMember))
+		r.mux.Handle("PATCH /api/v1/organization/members/{userID}", protect(auth.ManageMembers, h.updateMemberRole))
+		r.mux.Handle("DELETE /api/v1/organization/members/{userID}", protect(auth.ManageMembers, h.removeMember))
+		r.mux.Handle("GET /api/v1/organization/portal-links", protect(auth.ManagePortalLinks, h.listPortalLinks))
+		r.mux.Handle("POST /api/v1/organization/portal-links/owners", protect(auth.ManagePortalLinks, h.linkOwner))
+		r.mux.Handle("POST /api/v1/organization/portal-links/tenants", protect(auth.ManagePortalLinks, h.linkTenant))
+		r.mux.Handle("DELETE /api/v1/organization/portal-links/owners/{ownerID}/users/{userID}", protect(auth.ManagePortalLinks, h.unlinkOwner))
+		r.mux.Handle("DELETE /api/v1/organization/portal-links/tenants/{tenantID}/users/{userID}", protect(auth.ManagePortalLinks, h.unlinkTenant))
+	}
+	if deps.Reporting != nil {
+		h := reportingHandler{service: deps.Reporting}
+		r.mux.Handle("GET /api/v1/reporting/dashboard", protect(auth.ViewReporting, h.dashboard))
+		r.mux.Handle("GET /api/v1/audit-events", protect(auth.ViewAudit, h.audit))
 	}
 }
 

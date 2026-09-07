@@ -1,0 +1,96 @@
+.inlineForm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inlineForm select {
+  min-width: 120px;
+  padding: 8px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-strong);
+}
+
+.tableButton {
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-strong);
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tableButton:hover { border-color: var(--accent); }
+.tableButtonDanger { color: #7a4037; border-color: #d7bbb4; background: #fbf1ee; }
+
+.reportMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 30px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.reportCard {
+  min-height: 150px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 22px;
+  background: var(--surface);
+}
+
+.reportCard span,
+.reportCard small {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.reportCard strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 38px;
+  font-weight: 400;
+}
+
+.reportMoneyList {
+  min-height: 140px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 22px;
+}
+
+.reportMoney {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+}
+
+.reportFinancialPanel { min-width: 0; }
+.auditMeta {
+  display: block;
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 980px) {
+  .reportMetricGrid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 620px) {
+  .reportMetricGrid { grid-template-columns: 1fr; }
+  .inlineForm { align-items: stretch; flex-direction: column; }
+}

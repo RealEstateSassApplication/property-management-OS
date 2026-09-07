@@ -31,6 +31,13 @@ const (
 	ViewOwnerPortal           Permission = "portal:owner:view"
 	ViewTenantPortal          Permission = "portal:tenant:view"
 	CreateTenantPortalRequest Permission = "portal:tenant:create_maintenance_request"
+	ViewOrganization          Permission = "organization:view"
+	ManageOrganization        Permission = "organization:manage"
+	ViewMembers               Permission = "organization:members:view"
+	ManageMembers             Permission = "organization:members:manage"
+	ManagePortalLinks         Permission = "organization:portal_links:manage"
+	ViewReporting             Permission = "reporting:view"
+	ViewAudit                 Permission = "audit:view"
 )
 
 type Membership struct {
