@@ -69,6 +69,7 @@ jobs:
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000001_core.up.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000002_people_leasing.up.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000003_owners_rent.up.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000004_maintenance_operations.up.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-seed.sql
       - name: Verify leasing seed
         env:
@@ -84,6 +85,14 @@ jobs:
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT ownership_bps FROM ownership_interests WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'")" = "10000"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT ro.amount_minor - COALESCE(SUM(pa.amount_minor), 0) FROM rent_obligations ro LEFT JOIN payment_allocations pa ON pa.obligation_id = ro.id AND pa.organization_id = ro.organization_id WHERE ro.id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' GROUP BY ro.id, ro.amount_minor")" = "5000000"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT amount_minor FROM payments WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'")" = "10000000"
+      - name: Verify maintenance operations seed
+        env:
+          PGPASSWORD: property_os
+        run: |
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT status FROM maintenance_requests WHERE id = 'ffffffff-ffff-ffff-ffff-ffffffffffff'")" = "resolved"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT status FROM work_orders WHERE id = '12121212-1212-1212-1212-121212121212'")" = "completed"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT amount_minor || ':' || status FROM maintenance_quotes WHERE id = '13131313-1313-1313-1313-131313131313'")" = "1850000:approved"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM maintenance_completion_evidence WHERE work_order_id = '12121212-1212-1212-1212-121212121212'")" = "1"
 
   web:
     name: Next.js web
