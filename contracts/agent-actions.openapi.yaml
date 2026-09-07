@@ -1,0 +1,155 @@
+openapi: 3.1.0
+info:
+  title: Property Management OS Agent Actions API
+  version: 0.9.0
+  description: Human-in-the-loop API surface for high-risk agent-originated actions.
+servers:
+  - url: http://localhost:8080
+security:
+  - OIDCBearer: []
+paths:
+  /api/v1/agent-actions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationScope'
+      - $ref: '#/components/parameters/DevelopmentUser'
+    get:
+      operationId: listAgentActions
+      summary: List organization-scoped agent action requests
+      responses:
+        '200':
+          description: Agent action register
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AgentActionRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/agent-actions/maintenance-quote-approvals:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationScope'
+      - $ref: '#/components/parameters/DevelopmentUser'
+    post:
+      operationId: proposeMaintenanceQuoteApproval
+      summary: Propose human approval of a submitted maintenance quote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteApprovalProposal' }
+      responses:
+        '201':
+          description: Proposal created or existing active proposal returned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AgentActionRequest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/agent-actions/{actionID}/decision:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationScope'
+      - $ref: '#/components/parameters/DevelopmentUser'
+      - name: actionID
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: decideAgentAction
+      summary: Human approve or reject an agent proposal
+      description: Approval executes the existing domain service using the authenticated human reviewer's identity. This endpoint is not exposed as an MCP tool.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AgentActionDecision' }
+      responses:
+        '200':
+          description: Proposal reviewed and, when approved, executed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AgentActionRequest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    OIDCBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OrganizationScope:
+      name: X-Organization-ID
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+    DevelopmentUser:
+      name: X-User-ID
+      in: header
+      required: false
+      description: Development/test identity only. Ignored as a production authentication mechanism.
+      schema: { type: string, format: uuid }
+  schemas:
+    QuoteApprovalProposal:
+      type: object
+      additionalProperties: false
+      required: [quoteId, reasoning]
+      properties:
+        quoteId: { type: string, format: uuid }
+        reasoning: { type: string, minLength: 12 }
+    AgentActionDecision:
+      type: object
+      additionalProperties: false
+      required: [decision, reason]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+        reason: { type: string, minLength: 1 }
+    AgentActionRequest:
+      type: object
+      required: [id, organizationId, proposedByUserId, actionType, resourceType, resourceId, riskLevel, title, reasoning, payload, status, result, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        proposedByUserId: { type: string, format: uuid }
+        reviewedByUserId: { type: string, format: uuid }
+        actionType: { type: string, enum: [maintenance.quote.approve] }
+        resourceType: { type: string, enum: [maintenance_quote] }
+        resourceId: { type: string, format: uuid }
+        riskLevel: { type: string, enum: [low, medium, high] }
+        title: { type: string }
+        reasoning: { type: string }
+        payload: { type: object, additionalProperties: true }
+        status: { type: string, enum: [proposed, approved, rejected, executed, failed] }
+        decisionReason: { type: string }
+        result: { type: object, additionalProperties: true }
+        lastError: { type: string }
+        reviewedAt: { type: string, format: date-time }
+        executedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+  responses:
+    BadRequest:
+      description: Invalid request
+    Unauthorized:
+      description: Authentication required or invalid
+    Forbidden:
+      description: Organization membership or permission denied
+    NotFound:
+      description: Resource not found
+    Conflict:
+      description: Resource state changed or action cannot be applied
