@@ -10,10 +10,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/auth"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/config"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/database"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/httpapi"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenancies"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenants"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/units"
 )
 
@@ -31,12 +35,20 @@ func main() {
 	}
 	defer pool.Close()
 
+	authorizationService := auth.NewService(auth.NewPostgresRepository(pool))
 	propertyService := properties.NewService(properties.NewPostgresRepository(pool))
 	unitService := units.NewService(units.NewPostgresRepository(pool))
+	tenantService := tenants.NewService(tenants.NewPostgresRepository(pool))
+	tenancyService := tenancies.NewService(tenancies.NewPostgresRepository(pool))
+	leaseService := leases.NewService(leases.NewPostgresRepository(pool))
 
 	handler := httpapi.NewRouter(httpapi.Dependencies{
+		Authorization:            authorizationService,
 		Properties:               propertyService,
 		Units:                    unitService,
+		Tenants:                  tenantService,
+		Tenancies:                tenancyService,
+		Leases:                   leaseService,
 		AllowDevelopmentIdentity: cfg.Environment == "development" || cfg.Environment == "test",
 	})
 

@@ -2,11 +2,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 const navigation = [
-  { href: "/properties", label: "Portfolio", ready: true },
-  { href: "/tenants", label: "Tenants", ready: false },
-  { href: "/leases", label: "Leasing", ready: false },
-  { href: "/rent", label: "Rent", ready: false },
-  { href: "/maintenance", label: "Maintenance", ready: false },
+  { href: "/properties", label: "Portfolio", enabled: true },
+  { href: "/tenants", label: "Tenants", enabled: true },
+  { href: "/leases", label: "Leasing", enabled: true },
+  { href: "/rent", label: "Rent", enabled: false },
+  { href: "/maintenance", label: "Maintenance", enabled: false },
 ];
 
 export function AppShell({ children, section = "Portfolio" }: { children: ReactNode; section?: string }) {
@@ -18,29 +18,22 @@ export function AppShell({ children, section = "Portfolio" }: { children: ReactN
           <p className="brandSubline">Real estate operations</p>
         </div>
         <nav className="navList" aria-label="Primary navigation">
-          {navigation.map((item) => {
-            const className = item.label === section ? "navItem navItemActive" : "navItem";
-
-            if (!item.ready) {
-              return (
-                <span
-                  aria-disabled="true"
-                  className={`${className} navItemDisabled`}
-                  key={item.href}
-                  title="Coming in the next development tranche"
-                >
-                  {item.label}
-                  <small>Next</small>
-                </span>
-              );
-            }
-
-            return (
-              <Link className={className} href={item.href} key={item.href}>
+          {navigation.map((item) =>
+            item.enabled ? (
+              <Link
+                className={item.label === section ? "navItem navItemActive" : "navItem"}
+                href={item.href}
+                key={item.href}
+              >
                 {item.label}
               </Link>
-            );
-          })}
+            ) : (
+              <span className="navItem navItemDisabled" key={item.href} title="Coming next">
+                {item.label}
+                <small>Next</small>
+              </span>
+            ),
+          )}
         </nav>
         <div className="sidebarFoot">
           <span className="liveDot" />
