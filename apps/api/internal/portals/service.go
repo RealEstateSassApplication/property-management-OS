@@ -108,12 +108,12 @@ func (s *Service) CreateTenantMaintenance(ctx context.Context, organizationID, u
 		return maintenance.Request{}, err
 	}
 	return s.maintenance.CreateRequest(ctx, organizationID, userID, maintenance.CreateRequestInput{
-		PropertyID: context.PropertyID,
-		UnitID: context.UnitID,
-		TenantID: context.TenantID,
-		Title: input.Title,
+		PropertyID:  context.PropertyID,
+		UnitID:      context.UnitID,
+		TenantID:    context.TenantID,
+		Title:       input.Title,
 		Description: input.Description,
-		Category: input.Category,
-		Priority: input.Priority,
+		Category:    input.Category,
+		Priority:    input.Priority,
 	})
 }
