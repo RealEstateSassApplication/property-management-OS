@@ -23,12 +23,14 @@ func (s *Service) Authorize(ctx context.Context, organizationID, userID string, 
 
 func roleAllows(role string, permission Permission) bool {
 	switch role {
-	case "admin", "manager":
+	case "admin":
 		return true
+	case "manager":
+		return permission != ManageMembers
 	case "accountant":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewMaintenance || permission == ApproveMaintenanceCosts || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == DecideAgentActions
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewMaintenance || permission == ApproveMaintenanceCosts || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == DecideAgentActions || permission == ViewReporting || permission == ViewAudit
 	case "viewer":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ViewMaintenance
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ViewMaintenance || permission == ViewReporting
 	case "maintenance":
 		return permission == ViewPortfolio || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ManageMaintenance || permission == ProposeAgentActions
 	case "agent":
