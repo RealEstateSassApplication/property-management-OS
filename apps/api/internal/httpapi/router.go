@@ -24,10 +24,10 @@ type Dependencies struct {
 	Tenants                  *tenants.Service
 	Tenancies                *tenancies.Service
 	Leases                   *leases.Service
-	Owners                    *owners.Service
-	Rent                      *rent.Service
-	Maintenance               *maintenance.Service
-	Documents                 *documents.Service
+	Owners                   *owners.Service
+	Rent                     *rent.Service
+	Maintenance              *maintenance.Service
+	Documents                *documents.Service
 	AllowDevelopmentIdentity bool
 }
 
