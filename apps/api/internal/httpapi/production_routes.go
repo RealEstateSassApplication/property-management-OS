@@ -19,7 +19,7 @@ func WithProductionRoutes(base http.Handler, pool *pgxpool.Pool, payments *payme
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
-		if err := pool.Ping(ctx); err != nil {
+		if pool == nil || pool.Ping(ctx) != nil {
 			writeError(w, http.StatusServiceUnavailable, "database_unavailable", "database readiness check failed")
 			return
 		}
@@ -45,6 +45,9 @@ func WithProductionRoutes(base http.Handler, pool *pgxpool.Pool, payments *payme
 		case errors.Is(err, paymentproviders.ErrInvalidEvent):
 			writeError(w, http.StatusBadRequest, "payment_event_invalid", err.Error())
 			return
+		case errors.Is(err, paymentproviders.ErrEventPayloadConflict):
+			writeError(w, http.StatusConflict, "payment_event_id_conflict", err.Error())
+			return
 		case errors.Is(err, paymentproviders.ErrTenantNotFound), errors.Is(err, paymentproviders.ErrDuplicateRef):
 			writeError(w, http.StatusConflict, "payment_event_rejected", err.Error())
 			return
@@ -55,7 +58,7 @@ func WithProductionRoutes(base http.Handler, pool *pgxpool.Pool, payments *payme
 		writeJSON(w, http.StatusOK, map[string]any{"data": result})
 	})
 
-	mux.Handle("/", securityHeaders(base))
+	mux.Handle("/", base)
 	return securityHeaders(mux)
 }
 
