@@ -22,7 +22,7 @@ type OwnerProperty struct {
 	OwnershipBPS          int              `json:"ownershipBps"`
 	UnitCount             int              `json:"unitCount"`
 	OccupiedUnits         int              `json:"occupiedUnits"`
-	OpenMaintenance      int              `json:"openMaintenance"`
+	OpenMaintenance       int              `json:"openMaintenance"`
 	OutstandingByCurrency map[string]int64 `json:"outstandingByCurrencyMinor"`
 }
 
@@ -40,39 +40,39 @@ type TenantProfile struct {
 }
 
 type TenantOccupancy struct {
-	TenantID          string `json:"tenantId"`
-	TenancyID         string `json:"tenancyId"`
-	OccupantRole      string `json:"occupantRole"`
-	TenancyStatus     string `json:"tenancyStatus"`
-	StartDate         string `json:"startDate"`
-	EndDate           string `json:"endDate,omitempty"`
-	PropertyID        string `json:"propertyId"`
-	PropertyName      string `json:"propertyName"`
-	UnitID            string `json:"unitId"`
-	UnitLabel         string `json:"unitLabel"`
-	LeaseID           string `json:"leaseId,omitempty"`
-	LeaseReference    string `json:"leaseReference,omitempty"`
-	LeaseStatus       string `json:"leaseStatus,omitempty"`
-	LeaseStartDate    string `json:"leaseStartDate,omitempty"`
-	LeaseEndDate      string `json:"leaseEndDate,omitempty"`
-	RentAmountMinor   int64  `json:"rentAmountMinor,omitempty"`
-	DepositAmountMinor int64 `json:"depositAmountMinor,omitempty"`
-	Currency          string `json:"currency,omitempty"`
-	DueDay            int    `json:"dueDay,omitempty"`
+	TenantID           string `json:"tenantId"`
+	TenancyID          string `json:"tenancyId"`
+	OccupantRole       string `json:"occupantRole"`
+	TenancyStatus      string `json:"tenancyStatus"`
+	StartDate          string `json:"startDate"`
+	EndDate            string `json:"endDate,omitempty"`
+	PropertyID         string `json:"propertyId"`
+	PropertyName       string `json:"propertyName"`
+	UnitID             string `json:"unitId"`
+	UnitLabel          string `json:"unitLabel"`
+	LeaseID            string `json:"leaseId,omitempty"`
+	LeaseReference     string `json:"leaseReference,omitempty"`
+	LeaseStatus        string `json:"leaseStatus,omitempty"`
+	LeaseStartDate     string `json:"leaseStartDate,omitempty"`
+	LeaseEndDate       string `json:"leaseEndDate,omitempty"`
+	RentAmountMinor    int64  `json:"rentAmountMinor,omitempty"`
+	DepositAmountMinor int64  `json:"depositAmountMinor,omitempty"`
+	Currency           string `json:"currency,omitempty"`
+	DueDay             int    `json:"dueDay,omitempty"`
 }
 
 type TenantRentItem struct {
-	ObligationID string `json:"obligationId"`
-	TenantID     string `json:"tenantId"`
-	TenancyID    string `json:"tenancyId"`
-	LeaseID      string `json:"leaseId"`
-	Period       string `json:"period"`
-	DueDate      string `json:"dueDate"`
-	AmountMinor  int64  `json:"amountMinor"`
-	AllocatedMinor int64 `json:"allocatedMinor"`
-	BalanceMinor int64  `json:"balanceMinor"`
-	Currency     string `json:"currency"`
-	State        string `json:"state"`
+	ObligationID   string `json:"obligationId"`
+	TenantID       string `json:"tenantId"`
+	TenancyID      string `json:"tenancyId"`
+	LeaseID        string `json:"leaseId"`
+	Period         string `json:"period"`
+	DueDate        string `json:"dueDate"`
+	AmountMinor    int64  `json:"amountMinor"`
+	AllocatedMinor int64  `json:"allocatedMinor"`
+	BalanceMinor   int64  `json:"balanceMinor"`
+	Currency       string `json:"currency"`
+	State          string `json:"state"`
 }
 
 type TenantMaintenanceItem struct {
@@ -89,10 +89,10 @@ type TenantMaintenanceItem struct {
 }
 
 type TenantSummary struct {
-	Tenants      []TenantProfile         `json:"tenants"`
-	Occupancies  []TenantOccupancy       `json:"occupancies"`
-	Rent         []TenantRentItem        `json:"rent"`
-	Maintenance  []TenantMaintenanceItem `json:"maintenance"`
+	Tenants     []TenantProfile         `json:"tenants"`
+	Occupancies []TenantOccupancy       `json:"occupancies"`
+	Rent        []TenantRentItem        `json:"rent"`
+	Maintenance []TenantMaintenanceItem `json:"maintenance"`
 }
 
 type CreateTenantMaintenanceInput struct {
@@ -110,25 +110,25 @@ type TenantMaintenanceContext struct {
 }
 
 type OwnerPropertyBase struct {
-	OwnerID          string
-	PropertyID       string
-	ReferenceCode    string
-	Name             string
-	City             string
-	OwnershipBPS     int
-	UnitCount        int
-	OccupiedUnits    int
+	OwnerID         string
+	PropertyID      string
+	ReferenceCode   string
+	Name            string
+	City            string
+	OwnershipBPS    int
+	UnitCount       int
+	OccupiedUnits   int
 	OpenMaintenance int
 }
 
 type OwnerReceivableRow struct {
-	PropertyID       string
-	Currency         string
+	PropertyID        string
+	Currency          string
 	OutstandingMinor int64
 }
 
 var (
-	ErrOwnerLinkNotFound  = errors.New("no owner record is linked to this user")
-	ErrTenantLinkNotFound = errors.New("no tenant record is linked to this user")
+	ErrOwnerLinkNotFound    = errors.New("no owner record is linked to this user")
+	ErrTenantLinkNotFound   = errors.New("no tenant record is linked to this user")
 	ErrTenancyNotAccessible = errors.New("tenancy is not an active occupancy linked to this user")
 )
