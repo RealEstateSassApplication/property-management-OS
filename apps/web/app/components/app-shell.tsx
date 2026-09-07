@@ -9,6 +9,7 @@ const navigation = [
   { href: "/rent", label: "Rent", enabled: true },
   { href: "/maintenance", label: "Maintenance", enabled: true },
   { href: "/documents", label: "Documents", enabled: true },
+  { href: "/notifications", label: "Notifications", enabled: true },
 ];
 
 export function AppShell({ children, section = "Portfolio" }: { children: ReactNode; section?: string }) {

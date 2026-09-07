@@ -8,6 +8,7 @@ import (
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/documents"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
@@ -28,6 +29,7 @@ type Dependencies struct {
 	Rent                     *rent.Service
 	Maintenance              *maintenance.Service
 	Documents                *documents.Service
+	Notifications            *notifications.Service
 	AllowDevelopmentIdentity bool
 }
 
@@ -123,6 +125,12 @@ func (r *Router) routes(deps Dependencies) {
 		r.mux.Handle("POST /api/v1/documents/{documentID}/complete", protect(auth.ManageDocuments, h.completeUpload))
 		r.mux.Handle("GET /api/v1/documents/{documentID}/download", protect(auth.ViewDocuments, h.download))
 		r.mux.Handle("DELETE /api/v1/documents/{documentID}", protect(auth.ManageDocuments, h.delete))
+	}
+	if deps.Notifications != nil {
+		h := notificationHandler{service: deps.Notifications}
+		r.mux.Handle("GET /api/v1/notifications", protect(auth.ViewNotifications, h.list))
+		r.mux.Handle("POST /api/v1/notifications", protect(auth.ManageNotifications, h.enqueue))
+		r.mux.Handle("POST /api/v1/notifications/rent-reminders", protect(auth.SendRentReminders, h.queueRentReminder))
 	}
 }
 

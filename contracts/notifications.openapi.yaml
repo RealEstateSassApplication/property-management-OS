@@ -1,0 +1,193 @@
+openapi: 3.1.0
+info:
+  title: Property Management OS Notification API
+  version: 0.8.0
+  description: |
+    Notification/outbox contract for Property Management OS. Production requests use an OIDC
+    Bearer token and X-Organization-ID; PostgreSQL organization membership and route RBAC remain
+    authoritative. Delivery is asynchronous: API mutations commit durable outbox rows and a
+    separate Go worker performs external delivery.
+servers:
+  - url: http://localhost:8080
+security:
+  - OIDCBearer: []
+tags:
+  - name: Notifications
+paths:
+  /api/v1/notifications:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationScope'
+      - $ref: '#/components/parameters/DevelopmentUser'
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      summary: List recent notification delivery records
+      responses:
+        '200':
+          description: Notification register
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Notification' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Notifications]
+      operationId: enqueueNotification
+      summary: Queue a generic notification
+      description: Manager/admin-only generalized notification creation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EnqueueNotification' }
+      responses:
+        '201':
+          description: Durable notification row committed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v1/notifications/rent-reminders:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationScope'
+      - $ref: '#/components/parameters/DevelopmentUser'
+    post:
+      tags: [Notifications]
+      operationId: queueRentReminder
+      summary: Queue a server-authored rent reminder
+      description: |
+        The caller supplies only obligation ID, delivery channel and recipient. Property OS loads
+        the obligation from the authenticated organization, derives the current outstanding balance,
+        due date, tenant, property and unit from the ledger, authors the message server-side, rejects
+        paid/void obligations and deduplicates same-day reminders for the same obligation/channel/recipient.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RentReminderRequest' }
+      responses:
+        '201':
+          description: Reminder queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Obligation is paid, void or otherwise not eligible for a reminder
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProblemEnvelope' }
+
+components:
+  securitySchemes:
+    OIDCBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OrganizationScope:
+      name: X-Organization-ID
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+      description: Requested organization scope. This is not proof of membership.
+    DevelopmentUser:
+      name: X-User-ID
+      in: header
+      required: false
+      schema: { type: string, format: uuid }
+      description: Development/test identity only; not accepted as production authentication.
+  schemas:
+    Notification:
+      type: object
+      required: [id, organizationId, topic, channel, recipient, body, status, attemptCount, maxAttempts, availableAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        actorUserId: { type: string, format: uuid }
+        topic: { type: string }
+        channel: { type: string, enum: [email, sms, whatsapp, webhook] }
+        recipient: { type: string }
+        subject: { type: string }
+        body: { type: string }
+        payload: { type: object, additionalProperties: true }
+        resourceType: { type: string }
+        resourceId: { type: string, format: uuid }
+        idempotencyKey: { type: string }
+        status: { type: string, enum: [pending, processing, retry, delivered, dead] }
+        attemptCount: { type: integer, minimum: 0 }
+        maxAttempts: { type: integer, minimum: 1, maximum: 20 }
+        availableAt: { type: string, format: date-time }
+        lockedAt: { type: string, format: date-time }
+        lockedBy: { type: string }
+        lastError: { type: string }
+        deliveredAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    NotificationEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Notification' }
+    EnqueueNotification:
+      type: object
+      required: [topic, channel, recipient, body]
+      properties:
+        topic: { type: string, minLength: 1 }
+        channel: { type: string, enum: [email, sms, whatsapp, webhook] }
+        recipient: { type: string, minLength: 1 }
+        subject: { type: string }
+        body: { type: string, minLength: 1 }
+        payload: { type: object, additionalProperties: true }
+        resourceType: { type: string }
+        resourceId: { type: string, format: uuid }
+        idempotencyKey: { type: string }
+    RentReminderRequest:
+      type: object
+      required: [obligationId, channel, recipient]
+      properties:
+        obligationId: { type: string, format: uuid }
+        channel: { type: string, enum: [email, sms, whatsapp] }
+        recipient: { type: string, minLength: 1 }
+    Problem:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+    ProblemEnvelope:
+      type: object
+      properties:
+        error: { $ref: '#/components/schemas/Problem' }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProblemEnvelope' }
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProblemEnvelope' }
+    Forbidden:
+      description: Authenticated identity lacks organization membership or route permission
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProblemEnvelope' }
+    NotFound:
+      description: Resource not found in the authenticated organization
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProblemEnvelope' }

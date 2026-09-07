@@ -21,6 +21,9 @@ const (
 	ApproveMaintenanceCosts  Permission = "maintenance:approve_costs"
 	ViewDocuments            Permission = "documents:view"
 	ManageDocuments          Permission = "documents:manage"
+	ViewNotifications        Permission = "notifications:view"
+	ManageNotifications      Permission = "notifications:manage"
+	SendRentReminders        Permission = "notifications:send_rent_reminders"
 )
 
 type Membership struct {
