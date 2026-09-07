@@ -29,7 +29,9 @@ func (f *fakeRepository) CreateRequest(_ context.Context, _ string, actor string
 func (f *fakeRepository) UpdateRequestStatus(context.Context, string, string, string) (Request, error) {
 	return Request{}, nil
 }
-func (f *fakeRepository) ListWorkOrders(context.Context, string) ([]WorkOrder, error) { return nil, nil }
+func (f *fakeRepository) ListWorkOrders(context.Context, string) ([]WorkOrder, error) {
+	return nil, nil
+}
 func (f *fakeRepository) CreateWorkOrder(context.Context, string, CreateWorkOrderInput, *time.Time) (WorkOrder, error) {
 	return WorkOrder{}, nil
 }
