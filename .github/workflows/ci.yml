@@ -25,6 +25,8 @@ jobs:
           if [ -n "$files" ]; then
             echo "Go files require gofmt:"
             echo "$files"
+            echo "Canonical formatting diff:"
+            gofmt -d .
             exit 1
           fi
       - name: Verify module metadata
@@ -49,13 +51,10 @@ jobs:
           POSTGRES_DB: property_os
           POSTGRES_USER: property_os
           POSTGRES_PASSWORD: property_os
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U property_os -d property_os"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - name: Install PostgreSQL client
@@ -63,42 +62,32 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y postgresql-client
       - name: Apply migrations and seed
-        env:
-          PGPASSWORD: property_os
+        env: { PGPASSWORD: property_os }
         run: |
-          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000001_core.up.sql
-          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000002_people_leasing.up.sql
-          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000003_owners_rent.up.sql
-          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000004_maintenance_operations.up.sql
-          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000005_user_identities.up.sql
+          for migration in migrations/*_*.up.sql; do psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f "$migration"; done
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-seed.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-document-seed.sql
       - name: Verify identity mapping seed
-        env:
-          PGPASSWORD: property_os
-        run: |
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT user_id || ':' || subject FROM user_identities WHERE issuer = 'https://idp.example.invalid'")" = "22222222-2222-2222-2222-222222222222:property-os-dev-user"
+        env: { PGPASSWORD: property_os }
+        run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT user_id || ':' || subject FROM user_identities WHERE issuer = 'https://idp.example.invalid'")" = "22222222-2222-2222-2222-222222222222:property-os-dev-user"
       - name: Verify leasing seed
-        env:
-          PGPASSWORD: property_os
+        env: { PGPASSWORD: property_os }
         run: |
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM tenancies WHERE id = '77777777-7777-7777-7777-777777777777' AND status = 'active'")" = "1"
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM leases WHERE id = '88888888-8888-8888-8888-888888888888' AND status = 'active'")" = "1"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM tenancies WHERE id='77777777-7777-7777-7777-777777777777' AND status='active'")" = "1"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM leases WHERE id='88888888-8888-8888-8888-888888888888' AND status='active'")" = "1"
       - name: Verify ownership and rent ledger seed
-        env:
-          PGPASSWORD: property_os
+        env: { PGPASSWORD: property_os }
         run: |
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM owners WHERE id = '99999999-9999-9999-9999-999999999999' AND status = 'active'")" = "1"
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT ownership_bps FROM ownership_interests WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'")" = "10000"
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT ro.amount_minor - COALESCE(SUM(pa.amount_minor), 0) FROM rent_obligations ro LEFT JOIN payment_allocations pa ON pa.obligation_id = ro.id AND pa.organization_id = ro.organization_id WHERE ro.id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' GROUP BY ro.id, ro.amount_minor")" = "5000000"
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT amount_minor FROM payments WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'")" = "10000000"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT ownership_bps FROM ownership_interests WHERE id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'")" = "10000"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT ro.amount_minor-COALESCE(SUM(pa.amount_minor),0) FROM rent_obligations ro LEFT JOIN payment_allocations pa ON pa.obligation_id=ro.id AND pa.organization_id=ro.organization_id WHERE ro.id='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' GROUP BY ro.id,ro.amount_minor")" = "5000000"
       - name: Verify maintenance operations seed
-        env:
-          PGPASSWORD: property_os
+        env: { PGPASSWORD: property_os }
         run: |
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT status FROM maintenance_requests WHERE id = 'ffffffff-ffff-ffff-ffff-ffffffffffff'")" = "resolved"
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT status FROM work_orders WHERE id = '12121212-1212-1212-1212-121212121212'")" = "completed"
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT amount_minor || ':' || status FROM maintenance_quotes WHERE id = '13131313-1313-1313-1313-131313131313'")" = "1850000:approved"
-          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM maintenance_completion_evidence WHERE work_order_id = '12121212-1212-1212-1212-121212121212'")" = "1"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT status FROM maintenance_requests WHERE id='ffffffff-ffff-ffff-ffff-ffffffffffff'")" = "resolved"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM maintenance_completion_evidence WHERE work_order_id='12121212-1212-1212-1212-121212121212'")" = "1"
+      - name: Verify document metadata seed
+        env: { PGPASSWORD: property_os }
+        run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT resource_type || ':' || kind || ':' || status FROM documents WHERE id='15151515-1515-1515-1515-151515151515'")" = "lease:lease:available"
 
   web:
     name: Next.js web

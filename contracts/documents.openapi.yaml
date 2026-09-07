@@ -1,0 +1,188 @@
+openapi: 3.1.0
+info:
+  title: Property Management OS Document API
+  version: 0.7.0
+  description: Document-storage extension for the Property Management OS v1 API. Production requests use Bearer OIDC authentication plus an explicit organization scope.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/documents:
+    get:
+      operationId: listDocuments
+      summary: List organization documents
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+        - name: resourceType
+          in: query
+          schema: { type: string }
+        - name: resourceId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Document records
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Document' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/documents/uploads:
+    post:
+      operationId: initiateDocumentUpload
+      summary: Create pending metadata and a presigned direct-upload grant
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InitiateUpload' }
+      responses:
+        '201':
+          description: Upload intent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/UploadIntent' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { description: Object storage is not configured }
+  /api/v1/documents/{documentID}/complete:
+    post:
+      operationId: completeDocumentUpload
+      summary: Verify the uploaded object and publish or quarantine the document
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+        - $ref: '#/components/parameters/DocumentID'
+      responses:
+        '200':
+          description: Verified document
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Upload is not pending or object metadata does not match }
+        '502': { description: Object storage verification failed }
+  /api/v1/documents/{documentID}/download:
+    get:
+      operationId: createDocumentDownload
+      summary: Create a short-lived download grant for an available document
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+        - $ref: '#/components/parameters/DocumentID'
+      responses:
+        '200':
+          description: Presigned download grant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/DownloadGrant' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Document is not available }
+  /api/v1/documents/{documentID}:
+    delete:
+      operationId: deleteDocument
+      summary: Delete the stored object and tombstone its metadata
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+        - $ref: '#/components/parameters/DocumentID'
+      responses:
+        '200':
+          description: Deleted document record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '502': { description: Object deletion failed }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC JWT verified against the configured issuer and audience.
+  parameters:
+    OrganizationID:
+      name: X-Organization-ID
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+      description: Requested organization scope; PostgreSQL membership and permissions still authorize access.
+    DocumentID:
+      name: documentID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized: { description: Missing or invalid authentication }
+    Forbidden: { description: Organization membership or document permission denied }
+    BadRequest: { description: Invalid file metadata or unsupported file type }
+    NotFound: { description: Document or attached resource not found in organization scope }
+  schemas:
+    Document:
+      type: object
+      required: [id, organizationId, resourceType, resourceId, kind, fileName, contentType, sizeBytes, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        resourceType:
+          type: string
+          enum: [organization, property, unit, tenant, lease, owner, rent_payment, maintenance_request, work_order, vendor]
+        resourceId: { type: string, format: uuid }
+        kind:
+          type: string
+          enum: [lease, identity, inspection, invoice, receipt, maintenance, statement, other]
+        fileName: { type: string }
+        contentType:
+          type: string
+          enum: [application/pdf, image/jpeg, image/png, image/webp, text/plain, text/csv]
+        sizeBytes: { type: integer, format: int64, minimum: 1, maximum: 26214400 }
+        status: { type: string, enum: [pending, available, quarantined, deleted] }
+        checksumSha256: { type: string }
+        uploadedByUserId: { type: string, format: uuid }
+        verifiedAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    InitiateUpload:
+      type: object
+      required: [resourceType, resourceId, kind, fileName, contentType, sizeBytes]
+      properties:
+        resourceType: { type: string }
+        resourceId: { type: string, format: uuid }
+        kind: { type: string }
+        fileName: { type: string }
+        contentType: { type: string }
+        sizeBytes: { type: integer, format: int64, minimum: 1, maximum: 26214400 }
+    UploadIntent:
+      type: object
+      required: [document, uploadUrl, headers, expiresAt]
+      properties:
+        document: { $ref: '#/components/schemas/Document' }
+        uploadUrl: { type: string, format: uri }
+        headers: { type: object, additionalProperties: { type: string } }
+        expiresAt: { type: string, format: date-time }
+    DownloadGrant:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+    DocumentEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Document' }

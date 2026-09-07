@@ -19,6 +19,8 @@ const (
 	ManageMaintenance        Permission = "maintenance:manage"
 	ManageMaintenanceVendors Permission = "maintenance:manage_vendors"
 	ApproveMaintenanceCosts  Permission = "maintenance:approve_costs"
+	ViewDocuments            Permission = "documents:view"
+	ManageDocuments          Permission = "documents:manage"
 )
 
 type Membership struct {
