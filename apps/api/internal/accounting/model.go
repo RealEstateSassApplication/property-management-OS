@@ -59,24 +59,24 @@ type DepositTransaction struct {
 }
 
 type PropertyExpense struct {
-	ID               string     `json:"id"`
-	OrganizationID   string     `json:"organizationId"`
-	PropertyID       string     `json:"propertyId"`
-	PropertyName     string     `json:"propertyName"`
-	VendorID         string     `json:"vendorId,omitempty"`
-	VendorName       string     `json:"vendorName,omitempty"`
-	WorkOrderID      string     `json:"workOrderId,omitempty"`
-	Category         string     `json:"category"`
-	AmountMinor      int64      `json:"amountMinor"`
-	Currency         string     `json:"currency"`
-	IncurredOn       string     `json:"incurredOn"`
-	Note             string     `json:"note"`
-	ReferenceCode    string     `json:"referenceCode,omitempty"`
-	CreatedByUserID  string     `json:"createdByUserId,omitempty"`
-	CreatedAt        time.Time  `json:"createdAt"`
-	Reversed         bool       `json:"reversed"`
-	ReversalReason   string     `json:"reversalReason,omitempty"`
-	ReversedAt       *time.Time `json:"reversedAt,omitempty"`
+	ID              string     `json:"id"`
+	OrganizationID  string     `json:"organizationId"`
+	PropertyID      string     `json:"propertyId"`
+	PropertyName    string     `json:"propertyName"`
+	VendorID        string     `json:"vendorId,omitempty"`
+	VendorName      string     `json:"vendorName,omitempty"`
+	WorkOrderID     string     `json:"workOrderId,omitempty"`
+	Category        string     `json:"category"`
+	AmountMinor     int64      `json:"amountMinor"`
+	Currency        string     `json:"currency"`
+	IncurredOn      string     `json:"incurredOn"`
+	Note            string     `json:"note"`
+	ReferenceCode   string     `json:"referenceCode,omitempty"`
+	CreatedByUserID string     `json:"createdByUserId,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	Reversed        bool       `json:"reversed"`
+	ReversalReason  string     `json:"reversalReason,omitempty"`
+	ReversedAt      *time.Time `json:"reversedAt,omitempty"`
 }
 
 type StatementLine struct {
@@ -92,10 +92,10 @@ type StatementLine struct {
 }
 
 type StatementCurrencySummary struct {
-	Currency           string `json:"currency"`
-	IncomeMinor        int64  `json:"incomeMinor"`
-	ExpenseMinor       int64  `json:"expenseMinor"`
-	NetOwnerAmountMinor int64 `json:"netOwnerAmountMinor"`
+	Currency            string `json:"currency"`
+	IncomeMinor         int64  `json:"incomeMinor"`
+	ExpenseMinor        int64  `json:"expenseMinor"`
+	NetOwnerAmountMinor int64  `json:"netOwnerAmountMinor"`
 }
 
 type OwnerStatement struct {
