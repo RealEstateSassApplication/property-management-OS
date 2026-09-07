@@ -12,8 +12,12 @@ func NewService(repository MembershipRepository) *Service { return &Service{repo
 
 func (s *Service) Authorize(ctx context.Context, organizationID, userID string, permission Permission) (Membership, error) {
 	membership, err := s.repository.GetMembership(ctx, organizationID, userID)
-	if err != nil { return Membership{}, err }
-	if !roleAllows(membership.Role, permission) { return Membership{}, ErrForbidden }
+	if err != nil {
+		return Membership{}, err
+	}
+	if !roleAllows(membership.Role, permission) {
+		return Membership{}, ErrForbidden
+	}
 	return membership, nil
 }
 

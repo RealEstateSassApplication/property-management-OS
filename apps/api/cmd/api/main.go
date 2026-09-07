@@ -32,7 +32,10 @@ func main() {
 	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
 	pool, err := database.Connect(startupCtx, cfg.DatabaseURL)
 	cancelStartup()
-	if err != nil { logger.Error("database connection failed", "error", err); os.Exit(1) }
+	if err != nil {
+		logger.Error("database connection failed", "error", err)
+		os.Exit(1)
+	}
 	defer pool.Close()
 
 	authRepository := auth.NewPostgresRepository(pool)
@@ -41,22 +44,34 @@ func main() {
 	var authenticationService *auth.Authenticator
 	issuerConfigured := strings.TrimSpace(cfg.OIDCIssuerURL) != ""
 	audienceConfigured := strings.TrimSpace(cfg.OIDCAudience) != ""
-	if issuerConfigured != audienceConfigured { logger.Error("OIDC configuration is incomplete", "required", "OIDC_ISSUER_URL and OIDC_AUDIENCE must be configured together"); os.Exit(1) }
+	if issuerConfigured != audienceConfigured {
+		logger.Error("OIDC configuration is incomplete", "required", "OIDC_ISSUER_URL and OIDC_AUDIENCE must be configured together")
+		os.Exit(1)
+	}
 	if issuerConfigured {
 		authCtx, cancelAuth := context.WithTimeout(context.Background(), 10*time.Second)
 		verifier, err := auth.NewOIDCVerifier(authCtx, cfg.OIDCIssuerURL, cfg.OIDCAudience)
 		cancelAuth()
-		if err != nil { logger.Error("OIDC provider initialization failed", "error", err); os.Exit(1) }
+		if err != nil {
+			logger.Error("OIDC provider initialization failed", "error", err)
+			os.Exit(1)
+		}
 		authenticationService = auth.NewAuthenticator(verifier, authRepository)
 	}
-	if !allowDevelopmentIdentity && authenticationService == nil { logger.Error("production authentication is not configured", "required", "OIDC_ISSUER_URL and OIDC_AUDIENCE"); os.Exit(1) }
+	if !allowDevelopmentIdentity && authenticationService == nil {
+		logger.Error("production authentication is not configured", "required", "OIDC_ISSUER_URL and OIDC_AUDIENCE")
+		os.Exit(1)
+	}
 
 	var documentStorage documents.Storage
 	if strings.TrimSpace(cfg.StorageBucket) != "" {
 		storageCtx, cancelStorage := context.WithTimeout(context.Background(), 10*time.Second)
-		storage, err := documents.NewS3Storage(storageCtx, documents.S3StorageConfig{Bucket:cfg.StorageBucket, Region:cfg.StorageRegion, BaseEndpoint:cfg.StorageEndpoint, UsePathStyle:cfg.StoragePathStyle})
+		storage, err := documents.NewS3Storage(storageCtx, documents.S3StorageConfig{Bucket: cfg.StorageBucket, Region: cfg.StorageRegion, BaseEndpoint: cfg.StorageEndpoint, UsePathStyle: cfg.StoragePathStyle})
 		cancelStorage()
-		if err != nil { logger.Error("document storage initialization failed", "error", err); os.Exit(1) }
+		if err != nil {
+			logger.Error("document storage initialization failed", "error", err)
+			os.Exit(1)
+		}
 		documentStorage = storage
 	} else if !allowDevelopmentIdentity {
 		logger.Error("production document storage is not configured", "required", "STORAGE_BUCKET")
@@ -75,11 +90,23 @@ func main() {
 	maintenanceService := maintenance.NewService(maintenance.NewPostgresRepository(pool))
 	documentService := documents.NewService(documents.NewPostgresRepository(pool), documentStorage)
 
-	handler := httpapi.NewRouter(httpapi.Dependencies{Authentication:authenticationService, Authorization:authorizationService, Properties:propertyService, Units:unitService, Tenants:tenantService, Tenancies:tenancyService, Leases:leaseService, Owners:ownerService, Rent:rentService, Maintenance:maintenanceService, Documents:documentService, AllowDevelopmentIdentity:allowDevelopmentIdentity})
-	server := &http.Server{Addr:cfg.Address, Handler:handler, ReadHeaderTimeout:5*time.Second, ReadTimeout:15*time.Second, WriteTimeout:30*time.Second, IdleTimeout:60*time.Second}
-	go func() { logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment, "oidc", authenticationService != nil, "documentStorage", documentStorage != nil); if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) { logger.Error("api server stopped unexpectedly", "error", err); os.Exit(1) } }()
-	stop := make(chan os.Signal, 1); signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM); <-stop
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second); defer cancel()
-	if err := server.Shutdown(ctx); err != nil { logger.Error("graceful shutdown failed", "error", err); os.Exit(1) }
+	handler := httpapi.NewRouter(httpapi.Dependencies{Authentication: authenticationService, Authorization: authorizationService, Properties: propertyService, Units: unitService, Tenants: tenantService, Tenancies: tenancyService, Leases: leaseService, Owners: ownerService, Rent: rentService, Maintenance: maintenanceService, Documents: documentService, AllowDevelopmentIdentity: allowDevelopmentIdentity})
+	server := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
+	go func() {
+		logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment, "oidc", authenticationService != nil, "documentStorage", documentStorage != nil)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("api server stopped unexpectedly", "error", err)
+			os.Exit(1)
+		}
+	}()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error("graceful shutdown failed", "error", err)
+		os.Exit(1)
+	}
 	logger.Info("api server stopped")
 }
