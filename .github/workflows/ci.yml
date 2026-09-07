@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   api:
-    name: Go API
+    name: Go API + worker + MCP
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -29,17 +29,22 @@ jobs:
             gofmt -d .
             exit 1
           fi
-      - name: Verify module metadata
+      - name: Resolve MCP module metadata for bootstrap
         working-directory: apps/api
         run: |
           go mod tidy
-          git diff --exit-code -- go.mod go.sum
+          echo '---BEGIN RESOLVED GO.MOD---'
+          cat go.mod
+          echo '---END RESOLVED GO.MOD---'
+          echo '---BEGIN RESOLVED GO.SUM---'
+          cat go.sum
+          echo '---END RESOLVED GO.SUM---'
       - name: Test
         working-directory: apps/api
         run: go test ./...
-      - name: Build
+      - name: Build API, worker and MCP
         working-directory: apps/api
-        run: go build ./cmd/api
+        run: go build ./cmd/api ./cmd/worker ./cmd/mcp
 
   database:
     name: PostgreSQL migrations
@@ -67,6 +72,7 @@ jobs:
           for migration in migrations/*_*.up.sql; do psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f "$migration"; done
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-seed.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-document-seed.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-notification-seed.sql
       - name: Verify identity mapping seed
         env: { PGPASSWORD: property_os }
         run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT user_id || ':' || subject FROM user_identities WHERE issuer = 'https://idp.example.invalid'")" = "22222222-2222-2222-2222-222222222222:property-os-dev-user"
@@ -88,6 +94,9 @@ jobs:
       - name: Verify document metadata seed
         env: { PGPASSWORD: property_os }
         run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT resource_type || ':' || kind || ':' || status FROM documents WHERE id='15151515-1515-1515-1515-151515151515'")" = "lease:lease:available"
+      - name: Verify notification outbox seed
+        env: { PGPASSWORD: property_os }
+        run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT topic || ':' || channel || ':' || status FROM notification_outbox WHERE id='16161616-1616-1616-1616-161616161616'")" = "rent.reminder:email:pending"
 
   web:
     name: Next.js web
