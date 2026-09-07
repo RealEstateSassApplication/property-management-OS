@@ -28,6 +28,9 @@ const (
 	ViewAgentActions          Permission = "agent_actions:view"
 	ProposeAgentActions       Permission = "agent_actions:propose"
 	DecideAgentActions        Permission = "agent_actions:decide"
+	ViewOwnerPortal           Permission = "portal:owner:view"
+	ViewTenantPortal          Permission = "portal:tenant:view"
+	CreateTenantPortalRequest Permission = "portal:tenant:create_maintenance_request"
 )
 
 type Membership struct {
