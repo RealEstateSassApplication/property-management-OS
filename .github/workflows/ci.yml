@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: Go API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/api/go.mod
+          cache: false
+      - name: Format check
+        working-directory: apps/api
+        run: |
+          test -z "$(gofmt -l .)"
+      - name: Test
+        working-directory: apps/api
+        run: go test ./...
+      - name: Build
+        working-directory: apps/api
+        run: go build ./cmd/api
+
+  web:
+    name: Next.js web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install dependencies
+        run: npm install
+      - name: Lint
+        run: npm run lint:web
+      - name: Build
+        run: npm run build:web
