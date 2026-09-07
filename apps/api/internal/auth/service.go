@@ -30,11 +30,11 @@ func roleAllows(role string, permission Permission) bool {
 	case "admin", "manager":
 		return true
 	case "accountant":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewMaintenance || permission == ApproveMaintenanceCosts
 	case "viewer":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ViewMaintenance
 	case "maintenance":
-		return permission == ViewPortfolio
+		return permission == ViewPortfolio || permission == ViewMaintenance || permission == ManageMaintenance
 	case "owner":
 		// Owner-portal access must be resource-scoped to owned properties before
 		// generalized organization endpoints are exposed to this role.
