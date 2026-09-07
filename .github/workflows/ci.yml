@@ -68,6 +68,7 @@ jobs:
         run: |
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000001_core.up.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000002_people_leasing.up.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000003_owners_rent.up.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-seed.sql
       - name: Verify leasing seed
         env:
@@ -75,6 +76,14 @@ jobs:
         run: |
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM tenancies WHERE id = '77777777-7777-7777-7777-777777777777' AND status = 'active'")" = "1"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM leases WHERE id = '88888888-8888-8888-8888-888888888888' AND status = 'active'")" = "1"
+      - name: Verify ownership and rent ledger seed
+        env:
+          PGPASSWORD: property_os
+        run: |
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM owners WHERE id = '99999999-9999-9999-9999-999999999999' AND status = 'active'")" = "1"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT ownership_bps FROM ownership_interests WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'")" = "10000"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT ro.amount_minor - COALESCE(SUM(pa.amount_minor), 0) FROM rent_obligations ro LEFT JOIN payment_allocations pa ON pa.obligation_id = ro.id AND pa.organization_id = ro.organization_id WHERE ro.id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' GROUP BY ro.id, ro.amount_minor")" = "5000000"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT amount_minor FROM payments WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'")" = "10000000"
 
   web:
     name: Next.js web
