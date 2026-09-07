@@ -3,6 +3,7 @@ package agentactions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -56,19 +57,56 @@ func (s *Service) ProposeMaintenanceQuoteApproval(ctx context.Context, organizat
 func (s *Service) Decide(ctx context.Context, organizationID, actionID, reviewerID string, input DecisionInput) (ActionRequest, error) {
 	decision := strings.ToLower(strings.TrimSpace(input.Decision))
 	reason := strings.TrimSpace(input.Reason)
+	actionID = strings.TrimSpace(actionID)
+	reviewerID = strings.TrimSpace(reviewerID)
 	if decision != "approve" && decision != "reject" {
 		return ActionRequest{}, fmt.Errorf("decision must be approve or reject")
 	}
 	if reason == "" {
 		return ActionRequest{}, fmt.Errorf("decision reason is required")
 	}
-	action, err := s.repository.RecordDecision(ctx, organizationID, strings.TrimSpace(actionID), reviewerID, decision, reason)
-	if err != nil || decision == "reject" {
-		return action, err
+
+	action, err := s.repository.Get(ctx, organizationID, actionID)
+	if err != nil {
+		return ActionRequest{}, err
+	}
+
+	switch action.Status {
+	case "proposed":
+		action, err = s.repository.RecordDecision(ctx, organizationID, actionID, reviewerID, decision, reason)
+		if errors.Is(err, ErrActionNotPending) && decision == "approve" {
+			// Another request may have recorded the same approval between Get and
+			// RecordDecision. Reload and continue only if the durable state is approved.
+			action, err = s.repository.Get(ctx, organizationID, actionID)
+			if err == nil && action.Status != "approved" {
+				return ActionRequest{}, ErrActionNotPending
+			}
+		}
+		if err != nil {
+			return action, err
+		}
+	case "approved":
+		// Recovery path for a process that stopped after the human decision was
+		// committed but before domain execution/result persistence completed.
+		if decision != "approve" {
+			return ActionRequest{}, ErrActionNotPending
+		}
+	case "executed":
+		if decision == "approve" {
+			return action, nil
+		}
+		return ActionRequest{}, ErrActionNotPending
+	default:
+		return ActionRequest{}, ErrActionNotPending
+	}
+
+	if decision == "reject" {
+		return action, nil
 	}
 	if action.ActionType != MaintenanceQuoteApproval {
 		return s.failUnsupported(ctx, organizationID, action)
 	}
+
 	var payload QuoteApprovalContext
 	if err := json.Unmarshal(action.Payload, &payload); err != nil {
 		failed, markErr := s.repository.MarkFailed(ctx, organizationID, action.ID, "invalid action payload")
@@ -77,7 +115,12 @@ func (s *Service) Decide(ctx context.Context, organizationID, actionID, reviewer
 		}
 		return failed, fmt.Errorf("%w: invalid action payload", ErrExecutionFailed)
 	}
-	result, err := s.executor.ApproveMaintenanceQuote(ctx, organizationID, payload.QuoteID, reviewerID)
+
+	executionReviewerID := reviewerID
+	if action.ReviewedByUserID != "" {
+		executionReviewerID = action.ReviewedByUserID
+	}
+	result, err := s.executor.ApproveMaintenanceQuote(ctx, organizationID, payload.QuoteID, executionReviewerID)
 	if err != nil {
 		failed, markErr := s.repository.MarkFailed(ctx, organizationID, action.ID, err.Error())
 		if markErr != nil {
@@ -85,7 +128,18 @@ func (s *Service) Decide(ctx context.Context, organizationID, actionID, reviewer
 		}
 		return failed, fmt.Errorf("%w: %v", ErrExecutionFailed, err)
 	}
-	return s.repository.MarkExecuted(ctx, organizationID, action.ID, result)
+
+	executed, err := s.repository.MarkExecuted(ctx, organizationID, action.ID, result)
+	if err == nil {
+		return executed, nil
+	}
+	// Concurrent recovery may have persisted the result first. Do not turn an
+	// already executed action into a false failure.
+	current, getErr := s.repository.Get(ctx, organizationID, action.ID)
+	if getErr == nil && current.Status == "executed" {
+		return current, nil
+	}
+	return ActionRequest{}, err
 }
 
 func (s *Service) failUnsupported(ctx context.Context, organizationID string, action ActionRequest) (ActionRequest, error) {
