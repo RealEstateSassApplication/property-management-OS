@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/agentactions"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/auth"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/config"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/database"
@@ -91,8 +92,9 @@ func main() {
 	maintenanceService := maintenance.NewService(maintenance.NewPostgresRepository(pool))
 	documentService := documents.NewService(documents.NewPostgresRepository(pool), documentStorage)
 	notificationService := notifications.NewService(notifications.NewPostgresRepository(pool))
+	agentActionService := agentactions.NewService(agentactions.NewPostgresRepository(pool), agentactions.NewMaintenanceExecutor(maintenanceService))
 
-	handler := httpapi.NewRouter(httpapi.Dependencies{Authentication: authenticationService, Authorization: authorizationService, Properties: propertyService, Units: unitService, Tenants: tenantService, Tenancies: tenancyService, Leases: leaseService, Owners: ownerService, Rent: rentService, Maintenance: maintenanceService, Documents: documentService, Notifications: notificationService, AllowDevelopmentIdentity: allowDevelopmentIdentity})
+	handler := httpapi.NewRouter(httpapi.Dependencies{Authentication: authenticationService, Authorization: authorizationService, Properties: propertyService, Units: unitService, Tenants: tenantService, Tenancies: tenancyService, Leases: leaseService, Owners: ownerService, Rent: rentService, Maintenance: maintenanceService, Documents: documentService, Notifications: notificationService, AgentActions: agentActionService, AllowDevelopmentIdentity: allowDevelopmentIdentity})
 	server := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment, "oidc", authenticationService != nil, "documentStorage", documentStorage != nil)
