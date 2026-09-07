@@ -22,7 +22,13 @@ jobs:
         working-directory: apps/api
         run: |
           files="$(gofmt -l .)"
-          if [ -n "$files" ]; then echo "Go files require gofmt:"; echo "$files"; exit 1; fi
+          if [ -n "$files" ]; then
+            echo "Go files require gofmt:"
+            echo "$files"
+            echo "Canonical formatting diff:"
+            gofmt -d .
+            exit 1
+          fi
       - name: Resolve module metadata for document storage bootstrap
         working-directory: apps/api
         run: |
