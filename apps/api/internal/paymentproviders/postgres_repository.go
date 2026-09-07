@@ -34,16 +34,21 @@ func (r *PostgresRepository) ProcessPaidEvent(ctx context.Context, provider, pay
 	`, event.OrganizationID, provider, event.EventID, event.EventType, payloadHash).Scan(&eventRecordID, &createdAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		var result ProcessResult
+		var storedPayloadHash, storedOrganizationID string
 		result.Provider = provider
 		result.EventID = event.EventID
 		result.Duplicate = true
 		err := tx.QueryRow(ctx, `
-			SELECT status,COALESCE(payment_id::text,''),received_at
+			SELECT organization_id::text,payload_sha256,status,COALESCE(payment_id::text,''),received_at
 			FROM payment_provider_events
 			WHERE provider=$1 AND event_id=$2
-		`, provider, event.EventID).Scan(&result.Status, &result.PaymentID, &result.CreatedAt)
+			FOR UPDATE
+		`, provider, event.EventID).Scan(&storedOrganizationID, &storedPayloadHash, &result.Status, &result.PaymentID, &result.CreatedAt)
 		if err != nil {
 			return ProcessResult{}, err
+		}
+		if storedPayloadHash != payloadHash || storedOrganizationID != event.OrganizationID {
+			return ProcessResult{}, ErrEventPayloadConflict
 		}
 		if err := tx.Commit(ctx); err != nil {
 			return ProcessResult{}, err
