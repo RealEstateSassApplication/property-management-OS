@@ -125,4 +125,5 @@ func (r *Router) routes(deps Dependencies) {
 		r.mux.Handle("DELETE /api/v1/documents/{documentID}", protect(auth.ManageDocuments, h.delete))
 	}
 }
+
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) { r.mux.ServeHTTP(w, req) }
