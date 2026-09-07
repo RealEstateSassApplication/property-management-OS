@@ -66,7 +66,9 @@ func (c *Client) CreateMaintenanceRequest(ctx context.Context, input maintenance
 }
 
 func getList[T any](ctx context.Context, client *Client, path string) ([]T, error) {
-	var response struct{ Data []T `json:"data"` }
+	var response struct {
+		Data []T `json:"data"`
+	}
 	if err := client.do(ctx, http.MethodGet, path, nil, &response); err != nil {
 		return nil, err
 	}
@@ -74,7 +76,9 @@ func getList[T any](ctx context.Context, client *Client, path string) ([]T, erro
 }
 
 func postOne[I any, O any](ctx context.Context, client *Client, path string, input I) (O, error) {
-	var response struct{ Data O `json:"data"` }
+	var response struct {
+		Data O `json:"data"`
+	}
 	var zero O
 	if err := client.do(ctx, http.MethodPost, path, input, &response); err != nil {
 		return zero, err
@@ -113,7 +117,11 @@ func (c *Client) do(ctx context.Context, method, path string, input, output any)
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		var problem struct{ Error struct{ Message string `json:"message"` } `json:"error"` }
+		var problem struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
 		_ = json.NewDecoder(res.Body).Decode(&problem)
 		if problem.Error.Message == "" {
 			problem.Error.Message = res.Status
