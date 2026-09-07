@@ -8,6 +8,7 @@ const navigation = [
   { href: "/leases", label: "Leasing", enabled: true },
   { href: "/rent", label: "Rent", enabled: true },
   { href: "/maintenance", label: "Maintenance", enabled: true },
+  { href: "/documents", label: "Documents", enabled: true },
 ];
 
 export function AppShell({ children, section = "Portfolio" }: { children: ReactNode; section?: string }) {
@@ -21,25 +22,17 @@ export function AppShell({ children, section = "Portfolio" }: { children: ReactN
         <nav className="navList" aria-label="Primary navigation">
           {navigation.map((item) =>
             item.enabled ? (
-              <Link
-                className={item.label === section ? "navItem navItemActive" : "navItem"}
-                href={item.href}
-                key={item.href}
-              >
+              <Link className={item.label === section ? "navItem navItemActive" : "navItem"} href={item.href} key={item.href}>
                 {item.label}
               </Link>
             ) : (
               <span className="navItem navItemDisabled" key={item.href} title="Coming next">
-                {item.label}
-                <small>Next</small>
+                {item.label}<small>Next</small>
               </span>
             ),
           )}
         </nav>
-        <div className="sidebarFoot">
-          <span className="liveDot" />
-          <span>Development workspace</span>
-        </div>
+        <div className="sidebarFoot"><span className="liveDot" /><span>Development workspace</span></div>
       </aside>
       <main className="workspace">{children}</main>
     </div>
