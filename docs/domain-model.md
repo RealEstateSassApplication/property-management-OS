@@ -3,43 +3,75 @@
 ## Core aggregate flow
 
 ```text
-Organization
-  |
-  +-- Memberships -- Users
-  |
-  +-- Owners -- Ownership interests -- Properties
-  |                                  |
-  |                                  +-- Units
-  |                                        |
-  |                                        +-- Tenancies
-  |                                              |
-  |                                              +-- Tenancy tenants -- Tenants
-  |                                              |
-  |                                              +-- Leases
-  |                                                    |
-  |                                                    +-- Rent obligations
-  |                                                          ^
-  |                                                          |
-  |                                                    Payment allocations
-  |                                                          |
-  +------------------------------------------------------ Payments
-  |
-  +-- Vendors
-  |
-  +-- Maintenance requests
+OIDC issuer + subject
         |
-        +-- Work orders
-              |
-              +-- Maintenance quotes
-              |
-              +-- Completion evidence
+        v
+User identities -> Users -> Memberships -> Organization
+                                         |
+                                         +-- Owners -- Ownership interests -- Properties
+                                         |                                  |
+                                         |                                  +-- Units
+                                         |                                       |
+                                         |                                       +-- Tenancies
+                                         |                                             |
+                                         |                                             +-- Tenancy tenants -- Tenants
+                                         |                                             |
+                                         |                                             +-- Leases -> Rent obligations
+                                         |                                                            ^
+                                         |                                                            |
+                                         |                                                       Allocations
+                                         |                                                            |
+                                         +-------------------------------------------------------- Payments
+                                         |
+                                         +-- Vendors
+                                         |
+                                         +-- Maintenance requests -> Work orders -> Quotes / evidence
 ```
 
-## Organization and authorization
+## Organization
 
-The SaaS tenant. A property-management company, landlord business, or other portfolio operator is represented as an organization.
+The SaaS tenant. A property-management company, landlord business, or other portfolio operator is represented as an organization. All business records are organization-scoped.
 
-Users gain access through `organization_memberships`. Membership role is verified server-side on every business request. Current generalized permissions are:
+`X-Organization-ID` is an explicit requested organization scope. Possessing or guessing an organization ID does not grant access; membership and route permission are verified after authentication.
+
+## User identity and authentication
+
+`users` are stable Property OS identities. External login-provider identifiers are deliberately stored separately in `user_identities`.
+
+A production request follows this chain:
+
+```text
+Authorization: Bearer <JWT>
+        ↓
+OIDC discovery / JWKS signature / issuer / audience / lifetime verification
+        ↓
+verified issuer + subject
+        ↓
+user_identities (issuer, subject)
+        ↓
+internal users.id
+        ↓
+organization_memberships
+        ↓
+role permission
+```
+
+Important identity invariants:
+
+- OIDC `sub` is never treated as an internal UUID.
+- `(issuer, subject)` is unique and is the external identity key.
+- A single internal user can later be linked to multiple external identities/providers without changing domain references.
+- Token email is metadata only (`last_seen_email`); it never automatically links or authorizes a user.
+- Invalid, expired, wrong-audience, wrong-issuer, or unverifiable tokens are authentication failures (`401`).
+- A cryptographically valid identity with no `user_identities` mapping is authenticated externally but not provisioned locally (`403`).
+- Production startup requires `OIDC_ISSUER_URL` and `OIDC_AUDIENCE`.
+- Development/test may inject an internal user with `X-User-ID` when no Bearer token is present. Bearer authentication takes precedence when supplied.
+
+## Authorization
+
+Users gain organization access through `organization_memberships`. Membership role is verified server-side on every business request after identity has been resolved to an internal user.
+
+Current generalized permissions are:
 
 - `admin`, `manager`: read/write across implemented organization modules
 - `accountant`: read portfolio/people/leasing/owners/maintenance, manage rent, and approve maintenance costs
@@ -47,7 +79,7 @@ Users gain access through `organization_memberships`. Membership role is verifie
 - `maintenance`: portfolio read plus maintenance execution; cannot manage vendor master data or approve costs
 - `owner`: no generalized organization access until owned-property resource scoping is implemented
 
-Development identity headers only inject local identity; they do not bypass membership or role checks.
+Authentication and authorization are intentionally separate: a valid login never implies access to a particular organization.
 
 ## Property and unit
 
@@ -59,7 +91,7 @@ Only one tenancy may be `active` for a unit at a time. PostgreSQL enforces this 
 
 An owner is a person or legal entity with economic ownership in a property. It is deliberately separate from an application user or organization membership.
 
-An `ownership_interest` links an owner to a property using **basis points**:
+An `ownership_interest` links an owner to a property using basis points:
 
 ```text
 10,000 bps = 100.00%
@@ -69,7 +101,7 @@ An `ownership_interest` links an owner to a property using **basis points**:
 
 Interests have effective dates so historical ownership can be preserved. Creating a current interest locks the property row, sums current open interests, and rejects any change that would push total current ownership above 100%.
 
-Portal access for an owner will later be resource-scoped to the properties that owner is authorized to see; ownership data alone does not automatically grant login access.
+Ownership does not automatically create portal authorization; owner portal access will be resource-scoped explicitly.
 
 ## Tenant
 
@@ -87,7 +119,7 @@ The occupancy/business relationship for a unit. It connects one or more tenants 
 
 A tenancy has exactly one primary tenant and may have additional occupants through `tenancy_tenants`.
 
-Current lifecycle:
+Lifecycle:
 
 `upcoming -> active -> ended`
 
@@ -97,7 +129,7 @@ Current lifecycle:
 
 The contractual terms for a tenancy over a defined period. A tenancy may have multiple historical leases, but only one lease can be active at once.
 
-Current lifecycle:
+Lifecycle:
 
 `draft -> active -> expired`
 
@@ -106,31 +138,29 @@ Exceptional paths:
 - `draft -> cancelled`
 - `active -> terminated`
 
-Lease rent and deposit amounts are stored as integer **minor units** (`BIGINT`), never floating point. LKR 150,000.00 is stored as `15000000` minor units.
+Rent and deposit amounts are stored as integer minor units (`BIGINT`), never floating point.
 
 ## Rent obligation
 
 A rent obligation represents one lease-backed receivable for one month. The client supplies only the active lease and period; the backend derives amount, currency, and due day from the lease.
 
-There can be only one obligation per organization/lease/month. The due day is capped to the last valid day of short months.
-
-Obligation financial state is derived from obligation and allocation rows rather than stored as a mutable paid flag.
+There can be only one obligation per organization/lease/month. Financial state is derived from obligation and allocation rows rather than stored as a mutable paid flag.
 
 ## Payment and allocation
 
-A payment is an immutable posted cash receipt tied to a tenant. A payment allocation applies part of that receipt to a rent obligation. Row locking, currency validation, tenancy validation, and remaining-balance checks protect the ledger from over-allocation and concurrent double spend.
+A payment is an immutable posted cash receipt tied to a tenant. An allocation applies part of that receipt to a rent obligation. Row locking, currency validation, tenancy validation, and remaining-balance checks protect the ledger from over-allocation and concurrent double spend.
 
 ## Vendor
 
 A vendor is an organization-scoped service provider used by maintenance operations. Vendors have a trade and lifecycle state. An inactive vendor cannot be assigned to new work or submit new quotes.
 
-Vendor master-data writes are intentionally separated from ordinary maintenance execution permissions.
+Vendor master-data writes are separated from ordinary maintenance execution permissions.
 
 ## Maintenance request
 
 A maintenance request is the intake record for an operational issue. It belongs to a property and may be linked to a unit and tenant.
 
-If a tenant is attached, the backend verifies that the tenant is an active occupant of the selected unit. This prevents arbitrary tenant/unit associations and keeps tenant-facing history trustworthy.
+If a tenant is attached, the backend verifies that the tenant is an active occupant of the selected unit.
 
 Lifecycle:
 
@@ -154,9 +184,7 @@ planned -> assigned -> in_progress -> completed
     +----------+-------------+-> cancelled
 ```
 
-Starting a work order pushes its request into `in_progress`. Completing the final active work order resolves the request automatically when at least one work order completed successfully.
-
-A work order **cannot be completed without completion evidence**. This is enforced transactionally in the backend, not as a UI convention.
+A work order cannot be completed without completion evidence. This is enforced transactionally in the backend.
 
 ## Maintenance quote and approval
 
@@ -166,40 +194,24 @@ Lifecycle:
 
 `submitted -> approved | rejected | withdrawn`
 
-Important controls:
+Controls:
 
-- only one approved quote is allowed per work order
-- quote approval requires the dedicated `maintenance:approve_costs` permission
-- a maintenance operator cannot approve the quote they are executing under the generalized maintenance role
-- approving a quote atomically assigns the selected vendor to the work order
-- competing submitted quotes are rejected when one quote is approved
-- decision actor and time are retained, and the action is also written to `audit_events`
-
-This keeps cost approval separate from job execution while avoiding a separate workflow service at the current scale.
+- only one approved quote per work order
+- approval requires `maintenance:approve_costs`
+- ordinary maintenance execution does not imply cost-approval permission
+- approval atomically assigns the selected vendor
+- competing submitted quotes are rejected when one is approved
+- decision actor/time and audit event are retained
 
 ## Completion evidence
 
-Evidence is immutable proof attached to a work order. Today it can be a note or a storage reference; the model already supports future photos, invoices, receipts, and other stored artifacts.
+Evidence is immutable proof attached to a work order. It can be a note or storage reference and is designed to support future photos, invoices, receipts, and other artifacts.
 
-Each evidence record retains the submitting user and timestamp. Evidence creation also writes an audit event.
-
-Example maintenance flow:
-
-```text
-Tenant-linked request
-  -> triage
-  -> work order
-  -> vendor quote
-  -> independent quote approval
-  -> work starts
-  -> completion evidence
-  -> work order completes
-  -> request resolves
-```
+Each evidence record retains submitting user and timestamp.
 
 ## Documents
 
-Documents will attach to explicit resources with ownership/access metadata. Examples include leases, IDs, inspection reports, invoices, receipts, and richer maintenance evidence.
+Documents will attach to explicit resources with ownership/access metadata. Files themselves should live in object storage rather than PostgreSQL; PostgreSQL should store controlled metadata and relationships.
 
 ## Audit
 
@@ -218,10 +230,10 @@ Completed:
 7. Rent obligations
 8. Payments and allocations
 9. Maintenance requests, vendors, work orders, quotes, approvals, and completion evidence
+10. Production OIDC/JWT authentication and external-to-internal user identity mapping
 
 Next:
 
-10. Production OIDC/JWT adapter
 11. Documents, object storage, and notifications
 12. Owner/tenant portal resource scoping
 13. Financial adjustments, reversals, deposits, owner statements, reconciliation

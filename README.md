@@ -9,10 +9,12 @@ This repository is a monorepo built around a deliberately simple startup archite
 - **Web:** Next.js + TypeScript
 - **Backend:** Go modular monolith
 - **Database:** PostgreSQL
+- **Authentication:** standards-compliant OIDC / Bearer JWT
+- **Authorization:** PostgreSQL organization memberships + RBAC
 - **API contract:** OpenAPI
 - **Local development:** Docker Compose
 
-The system is multi-tenant from day one. Business data is organization-scoped and authorization is enforced server-side.
+The system is multi-tenant from day one. Business data is organization-scoped and all authorization is enforced server-side.
 
 ## Repository layout
 
@@ -37,27 +39,54 @@ docs/                  Architecture and domain documentation
 - organization-scoped properties and units
 - property and unit create/list/get/update APIs
 - portfolio register, property details, unit management, and occupancy metrics
-- OpenAPI contract and CI for Go, PostgreSQL, and Next.js
+- CI for Go, PostgreSQL, and Next.js
 
-### Identity and authorization
+### Production identity and authorization
 
-- development identity includes organization and user context
-- every business request verifies `organization_memberships`
-- route-level permissions for portfolio, people, leasing, owners, rent, and maintenance
-- admin/manager can manage all current organization modules
-- accountant can read operational data, manage rent, and approve maintenance costs
-- viewer is read-only
-- maintenance role can view portfolio and execute maintenance operations but cannot approve vendor costs or manage vendor master data
-- owner role intentionally has no generalized organization access until resource-scoped owner portal authorization exists
-- development identity headers are disabled outside development/test until production OIDC/JWT is connected
+Production authentication is provider-neutral OIDC. The API performs issuer discovery, verifies JWT signatures against the provider JWKS, validates issuer/audience/token lifetime, and then maps the verified external identity to a stable internal Property OS user.
+
+```text
+Bearer JWT
+   ↓
+OIDC issuer / JWKS / audience verification
+   ↓
+verified issuer + subject
+   ↓
+user_identities
+   ↓
+internal users.id
+   ↓
+organization_memberships
+   ↓
+route permission
+```
+
+Important rules:
+
+- an OIDC `sub` is never used as a Property OS user UUID
+- `issuer + subject` uniquely identify a linked external identity
+- email is retained as last-seen metadata but is never used to grant access
+- a valid token whose identity is not linked returns `403 Forbidden`
+- an invalid, expired, or unverifiable Bearer token returns `401 Unauthorized`
+- `X-Organization-ID` selects the organization the caller wants to operate in; it does **not** grant membership
+- PostgreSQL `organization_memberships` remains the authorization authority
+- production startup fails if `OIDC_ISSUER_URL` and `OIDC_AUDIENCE` are not configured together
+- development/test may still use `X-User-ID` when no Bearer token is supplied
+- if a Bearer token is supplied in development, the real OIDC path takes precedence
+
+Current roles and permissions include:
+
+- `admin`, `manager`: manage all implemented organization modules
+- `accountant`: read operational data, manage rent, and approve maintenance costs
+- `viewer`: read-only operational access
+- `maintenance`: portfolio visibility and maintenance execution, but not vendor master-data management or cost approval
+- `owner`: no generalized organization access until resource-scoped owner portal authorization is implemented
 
 ### Tenants, tenancies, and leases
 
 - tenant register with prospect/active/former/blocked lifecycle
-- tenant create/list/get/update API
 - tenancy model separate from authentication and lease contracts
 - primary tenant plus additional occupants
-- tenancy create/list/get/update API
 - one active tenancy per unit enforced in PostgreSQL
 - active tenancy synchronizes unit occupancy
 - lease create/list/get/update API
@@ -70,40 +99,38 @@ docs/                  Architecture and domain documentation
 
 - owners are business-domain records, separate from application users
 - individual and company owner types
-- property ownership interests stored in basis points (`10,000 bps = 100%`)
+- ownership interests stored in basis points (`10,000 bps = 100%`)
 - effective ownership dates retained for historical reporting
 - current ownership assignments cannot exceed 100%
 - property-row locking serializes concurrent ownership changes
-- owner and ownership-interest APIs
 - manager-facing Owners workspace
 
 ### Rent ledger
 
-- monthly rent obligations derive amount, currency, and due day from the active lease in Go
+- monthly obligations derive amount, currency, and due day from the active lease in Go
 - one obligation per lease/month
-- payments are immutable posted cash records
+- immutable posted payment records
 - allocations are the only mechanism that reduces obligation balances
-- obligation balances and open/overdue/paid state are derived from ledger rows
-- partial payments are supported
-- payment and obligation rows are locked during allocation to prevent concurrent over-allocation
-- currency, tenant/tenancy, payment-state, and balance checks are server-authoritative
-- manager-facing Rent workspace with obligation generation, payment posting, allocation, receivables, and cash registers
+- balances and open/overdue/paid state are derived from ledger rows
+- partial payments supported
+- payment and obligation rows locked during allocation
+- currency, tenancy, payment-state, and balance checks are server-authoritative
+- manager-facing Rent workspace with receivables and cash registers
 
 ### Maintenance operations
 
-- organization-scoped vendor directory with trade/status controls
-- maintenance requests linked to property, optional unit, and optional tenant
+- organization-scoped vendor directory
+- property/unit/tenant-linked maintenance requests
 - tenant-linked requests require an active occupancy on the selected unit
-- work orders support internal work or vendor assignment and scheduling
-- request and work-order lifecycle transitions are validated in Go/PostgreSQL transactions
-- vendor quotes use integer minor-unit money and require an independent decision permission
-- only one approved quote can exist for a work order
+- work orders support internal or vendor assignment and scheduling
+- quote money is integer minor-unit data
+- cost approval is separate from maintenance execution permission
+- one approved quote per work order
 - approving a quote atomically assigns its vendor and rejects competing submitted quotes
-- completion evidence supports notes today and storage references for future files/photos/invoices
-- work orders cannot complete without evidence
-- resolved request state follows completed work orders rather than a browser-supplied flag
-- quote decisions and evidence capture write actor-aware audit events
-- manager-facing Maintenance workspace for intake, dispatch, vendors, quotes, approvals, proof, and lifecycle controls
+- work orders cannot complete without completion evidence
+- request resolution follows completed work orders
+- quote decisions and evidence capture retain actor-aware audit events
+- manager-facing Maintenance workspace for intake, dispatch, quotes, approvals, proof, and lifecycle controls
 
 ## Local development
 
@@ -120,6 +147,7 @@ For an existing database, apply only migrations you have not run:
 make migrate-people
 make migrate-finance
 make migrate-maintenance
+make migrate-identity
 make seed
 ```
 
@@ -137,7 +165,7 @@ set -a && source .env && set +a
 make web
 ```
 
-The deterministic development identity is:
+Development identity:
 
 ```text
 Organization: 11111111-1111-1111-1111-111111111111
@@ -145,15 +173,43 @@ User:         22222222-2222-2222-2222-222222222222
 Role:         admin
 ```
 
-The deterministic seed includes:
+The deterministic seed also contains a test external identity mapping:
 
-- an active LKR 150,000/month lease
-- a September 2026 rent obligation with LKR 50,000 outstanding after allocation
-- a 100% property owner relationship
-- a resolved plumbing request for the active tenant/unit
-- a completed vendor work order
-- an approved LKR 18,500 quote
-- completion evidence proving the repair and post-work leak test
+```text
+Issuer:  https://idp.example.invalid
+Subject: property-os-dev-user
+User:    22222222-2222-2222-2222-222222222222
+```
+
+For production set:
+
+```bash
+APP_ENV=production
+OIDC_ISSUER_URL=https://your-idp.example.com/
+OIDC_AUDIENCE=your-property-os-api-audience
+```
+
+The configured provider may be Auth0, Keycloak, Okta, Microsoft Entra ID, or another OIDC-compliant issuer.
+
+## API authentication
+
+Production business requests use:
+
+```http
+Authorization: Bearer <verified OIDC JWT>
+X-Organization-ID: <organization UUID>
+```
+
+The organization header is a requested tenant scope. After authentication, the backend verifies that the resolved internal user is an active member with the permission required by the route.
+
+Development/test can instead use:
+
+```http
+X-Organization-ID: <organization UUID>
+X-User-ID: <internal user UUID>
+```
+
+Those development headers are not accepted as production authentication.
 
 ## API groups
 
@@ -197,30 +253,29 @@ POST           /api/v1/maintenance/quotes/{quoteID}/decision
 GET/POST       /api/v1/maintenance/evidence
 ```
 
-See `contracts/openapi.yaml` for the request and response contract.
+See `contracts/openapi.yaml` for the request/response contract.
 
 ## Development principles
 
 - Keep the backend a **modular monolith** until scaling requirements justify otherwise.
 - PostgreSQL is the source of truth.
+- Separate authentication from authorization.
+- Keep external identities separate from stable internal user IDs.
+- Never authorize by email alone.
 - Never use floating-point values as persisted money.
 - Never trust browser-calculated financial state.
 - Derive balances from auditable ledger rows.
-- Keep financial approval permissions separate from operational execution permissions.
+- Keep financial approval separate from operational execution.
 - Require explicit evidence before declaring operational work complete.
-- Keep business rules in Go, not UI components.
-- Enforce organization and membership access at the backend boundary.
 - Keep tenant/person records separate from portal authentication identities.
 - Keep tenancy/occupancy separate from lease contracts.
-- Design external authentication and Avara integration behind explicit interfaces.
 - Add asynchronous infrastructure only when workflows require it.
 
 ## Next domains
 
-1. Production OIDC/JWT identity adapter
-2. Documents, object storage, and notifications
-3. Resource-scoped owner and tenant portals
-4. Rent adjustments, reversals, deposits, owner statements, and reconciliation
-5. Maintenance invoice/expense posting and owner approval policies
-6. Reporting, audit surfaces, and workflow automation
-7. Avara and Blu integration adapters
+1. Documents, object storage, and notifications
+2. Resource-scoped owner and tenant portals
+3. Rent adjustments, reversals, deposits, owner statements, and reconciliation
+4. Maintenance invoice/expense posting and owner approval policies
+5. Reporting, audit surfaces, and workflow automation
+6. Avara and Blu integration adapters

@@ -1,310 +1,362 @@
 openapi: 3.1.0
 info:
   title: Property Management OS API
-  version: 0.4.0
+  version: 0.6.0
   description: |
     Contract for the Property Management OS modular-monolith backend.
-    Business endpoints require authenticated organization membership and route-level permission checks.
-    During local development only, X-Organization-ID and X-User-ID inject identity before PostgreSQL membership/RBAC verification.
-    Monetary values are integer minor units and financial balances are server-authoritative.
+    Production business requests use an OIDC Bearer JWT plus X-Organization-ID.
+    The JWT resolves to a stable internal user and PostgreSQL organization membership/RBAC
+    remains authoritative. Development/test may use X-User-ID when no Bearer token is supplied.
+    Monetary values are integer minor units and financial/operational state is server-authoritative.
 servers:
   - url: http://localhost:8080
     description: Local development
+security:
+  - OIDCBearer: []
+
+tags:
+  - { name: Portfolio }
+  - { name: People }
+  - { name: Leasing }
+  - { name: Owners }
+  - { name: Rent }
+  - { name: Maintenance }
 
 paths:
   /healthz:
     get:
+      security: []
       operationId: getHealth
-      summary: Service liveness
       responses:
-        '200': { description: API is healthy, content: { application/json: { schema: { $ref: '#/components/schemas/HealthResponse' } } } }
+        '200': { description: Healthy, content: { application/json: { schema: { $ref: '#/components/schemas/HealthResponse' } } } }
 
   /api/v1:
     get:
+      security: []
       operationId: getApiInfo
-      summary: API metadata
       responses:
         '200': { description: API metadata, content: { application/json: { schema: { $ref: '#/components/schemas/ApiInfo' } } } }
 
   /api/v1/properties:
-    parameters: &identity
-      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+    parameters: &businessIdentity
+      - { $ref: '#/components/parameters/OrganizationScope' }
       - { $ref: '#/components/parameters/DevelopmentUser' }
     get:
+      tags: [Portfolio]
       operationId: listProperties
-      summary: List organization properties
-      responses:
-        '200': { $ref: '#/components/responses/PropertyList' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+      responses: { '200': { $ref: '#/components/responses/PropertyList' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' } }
     post:
+      tags: [Portfolio]
       operationId: createProperty
-      summary: Create a property
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PropertyCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/PropertyItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+      responses: { '201': { $ref: '#/components/responses/PropertyItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '403': { $ref: '#/components/responses/Forbidden' } }
 
   /api/v1/properties/{propertyID}:
     parameters:
-      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/OrganizationScope' }
       - { $ref: '#/components/parameters/DevelopmentUser' }
       - { $ref: '#/components/parameters/PropertyID' }
     get:
+      tags: [Portfolio]
       operationId: getProperty
-      summary: Get a property
-      responses:
-        '200': { $ref: '#/components/responses/PropertyItem' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/PropertyItem' }, '404': { $ref: '#/components/responses/NotFound' } }
     patch:
+      tags: [Portfolio]
       operationId: updateProperty
-      summary: Update a property
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PropertyUpdate' } } } }
-      responses:
-        '200': { $ref: '#/components/responses/PropertyItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/PropertyItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '404': { $ref: '#/components/responses/NotFound' } }
 
   /api/v1/properties/{propertyID}/units:
     parameters:
-      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/OrganizationScope' }
       - { $ref: '#/components/parameters/DevelopmentUser' }
       - { $ref: '#/components/parameters/PropertyID' }
     get:
+      tags: [Portfolio]
       operationId: listUnitsByProperty
-      summary: List units for a property
-      responses:
-        '200': { $ref: '#/components/responses/UnitList' }
+      responses: { '200': { $ref: '#/components/responses/UnitList' } }
     post:
+      tags: [Portfolio]
       operationId: createUnit
-      summary: Create a unit
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UnitCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/UnitItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+      responses: { '201': { $ref: '#/components/responses/UnitItem' }, '400': { $ref: '#/components/responses/BadRequest' } }
 
   /api/v1/units/{unitID}:
     parameters:
-      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/OrganizationScope' }
       - { $ref: '#/components/parameters/DevelopmentUser' }
       - { $ref: '#/components/parameters/UnitID' }
     get:
+      tags: [Portfolio]
       operationId: getUnit
-      responses:
-        '200': { $ref: '#/components/responses/UnitItem' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/UnitItem' }, '404': { $ref: '#/components/responses/NotFound' } }
     patch:
+      tags: [Portfolio]
       operationId: updateUnit
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UnitUpdate' } } } }
-      responses:
-        '200': { $ref: '#/components/responses/UnitItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/UnitItem' }, '400': { $ref: '#/components/responses/BadRequest' } }
 
   /api/v1/tenants:
-    parameters: *identity
+    parameters: *businessIdentity
     get:
+      tags: [People]
       operationId: listTenants
-      responses:
-        '200': { $ref: '#/components/responses/TenantList' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+      responses: { '200': { $ref: '#/components/responses/TenantList' } }
     post:
+      tags: [People]
       operationId: createTenant
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TenantCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/TenantItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+      responses: { '201': { $ref: '#/components/responses/TenantItem' }, '400': { $ref: '#/components/responses/BadRequest' } }
 
   /api/v1/tenants/{tenantID}:
     parameters:
-      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/OrganizationScope' }
       - { $ref: '#/components/parameters/DevelopmentUser' }
       - { $ref: '#/components/parameters/TenantID' }
     get:
+      tags: [People]
       operationId: getTenant
-      responses:
-        '200': { $ref: '#/components/responses/TenantItem' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/TenantItem' }, '404': { $ref: '#/components/responses/NotFound' } }
     patch:
+      tags: [People]
       operationId: updateTenant
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TenantUpdate' } } } }
-      responses:
-        '200': { $ref: '#/components/responses/TenantItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/TenantItem' }, '400': { $ref: '#/components/responses/BadRequest' } }
 
   /api/v1/tenancies:
-    parameters: *identity
+    parameters: *businessIdentity
     get:
+      tags: [Leasing]
       operationId: listTenancies
-      responses:
-        '200': { $ref: '#/components/responses/TenancyList' }
+      responses: { '200': { $ref: '#/components/responses/TenancyList' } }
     post:
+      tags: [Leasing]
       operationId: createTenancy
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TenancyCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/TenancyItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+      responses: { '201': { $ref: '#/components/responses/TenancyItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '409': { $ref: '#/components/responses/Conflict' } }
 
   /api/v1/tenancies/{tenancyID}:
     parameters:
-      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/OrganizationScope' }
       - { $ref: '#/components/parameters/DevelopmentUser' }
       - { $ref: '#/components/parameters/TenancyID' }
     get:
+      tags: [Leasing]
       operationId: getTenancy
-      responses:
-        '200': { $ref: '#/components/responses/TenancyItem' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/TenancyItem' }, '404': { $ref: '#/components/responses/NotFound' } }
     patch:
+      tags: [Leasing]
       operationId: updateTenancy
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TenancyUpdate' } } } }
-      responses:
-        '200': { $ref: '#/components/responses/TenancyItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '409': { $ref: '#/components/responses/Conflict' }
+      responses: { '200': { $ref: '#/components/responses/TenancyItem' }, '409': { $ref: '#/components/responses/Conflict' } }
 
   /api/v1/leases:
-    parameters: *identity
+    parameters: *businessIdentity
     get:
+      tags: [Leasing]
       operationId: listLeases
-      responses:
-        '200': { $ref: '#/components/responses/LeaseList' }
+      responses: { '200': { $ref: '#/components/responses/LeaseList' } }
     post:
+      tags: [Leasing]
       operationId: createLease
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/LeaseCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/LeaseItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+      responses: { '201': { $ref: '#/components/responses/LeaseItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '409': { $ref: '#/components/responses/Conflict' } }
 
   /api/v1/leases/{leaseID}:
     parameters:
-      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/OrganizationScope' }
       - { $ref: '#/components/parameters/DevelopmentUser' }
       - { $ref: '#/components/parameters/LeaseID' }
     get:
+      tags: [Leasing]
       operationId: getLease
-      responses:
-        '200': { $ref: '#/components/responses/LeaseItem' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/LeaseItem' }, '404': { $ref: '#/components/responses/NotFound' } }
     patch:
+      tags: [Leasing]
       operationId: updateLease
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/LeaseUpdate' } } } }
-      responses:
-        '200': { $ref: '#/components/responses/LeaseItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '409': { $ref: '#/components/responses/Conflict' }
+      responses: { '200': { $ref: '#/components/responses/LeaseItem' }, '409': { $ref: '#/components/responses/Conflict' } }
 
   /api/v1/owners:
-    parameters: *identity
+    parameters: *businessIdentity
     get:
+      tags: [Owners]
       operationId: listOwners
-      summary: List property owners
-      responses:
-        '200': { $ref: '#/components/responses/OwnerList' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+      responses: { '200': { $ref: '#/components/responses/OwnerList' } }
     post:
+      tags: [Owners]
       operationId: createOwner
-      summary: Create an owner business record
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/OwnerCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/OwnerItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+      responses: { '201': { $ref: '#/components/responses/OwnerItem' }, '400': { $ref: '#/components/responses/BadRequest' } }
 
   /api/v1/owners/{ownerID}:
     parameters:
-      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/OrganizationScope' }
       - { $ref: '#/components/parameters/DevelopmentUser' }
       - { $ref: '#/components/parameters/OwnerID' }
     get:
+      tags: [Owners]
       operationId: getOwner
-      responses:
-        '200': { $ref: '#/components/responses/OwnerItem' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '200': { $ref: '#/components/responses/OwnerItem' }, '404': { $ref: '#/components/responses/NotFound' } }
 
   /api/v1/ownership-interests:
-    parameters: *identity
+    parameters: *businessIdentity
     get:
+      tags: [Owners]
       operationId: listOwnershipInterests
-      summary: List effective property ownership interests
-      responses:
-        '200': { $ref: '#/components/responses/OwnershipInterestList' }
+      responses: { '200': { $ref: '#/components/responses/OwnershipInterestList' } }
     post:
+      tags: [Owners]
       operationId: createOwnershipInterest
-      summary: Assign an effective ownership percentage
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/OwnershipInterestCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/OwnershipInterestItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+      responses: { '201': { $ref: '#/components/responses/OwnershipInterestItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '409': { $ref: '#/components/responses/Conflict' } }
 
   /api/v1/rent/obligations:
-    parameters: *identity
+    parameters: *businessIdentity
     get:
+      tags: [Rent]
       operationId: listRentObligations
-      summary: List lease-backed rent receivables with derived balances
-      responses:
-        '200': { $ref: '#/components/responses/RentObligationList' }
+      responses: { '200': { $ref: '#/components/responses/RentObligationList' } }
     post:
+      tags: [Rent]
       operationId: createRentObligation
-      summary: Generate one monthly obligation from an active lease
-      description: Amount, currency, and due day are derived server-side from the lease.
+      description: Amount, currency, and due date are derived server-side from the active lease.
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RentObligationCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/RentObligationItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+      responses: { '201': { $ref: '#/components/responses/RentObligationItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '409': { $ref: '#/components/responses/Conflict' } }
 
   /api/v1/rent/payments:
-    parameters: *identity
+    parameters: *businessIdentity
     get:
+      tags: [Rent]
       operationId: listRentPayments
-      summary: List posted tenant payments and derived unallocated balances
-      responses:
-        '200': { $ref: '#/components/responses/RentPaymentList' }
+      responses: { '200': { $ref: '#/components/responses/RentPaymentList' } }
     post:
+      tags: [Rent]
       operationId: createRentPayment
-      summary: Record an immutable posted payment
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RentPaymentCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/RentPaymentItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+      responses: { '201': { $ref: '#/components/responses/RentPaymentItem' }, '400': { $ref: '#/components/responses/BadRequest' } }
 
   /api/v1/rent/allocations:
-    parameters: *identity
+    parameters: *businessIdentity
     post:
+      tags: [Rent]
       operationId: createRentAllocation
-      summary: Allocate a posted payment to an outstanding obligation
-      description: The backend locks payment and obligation rows and rejects tenant, currency, or balance violations.
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RentAllocationCreate' } } } }
-      responses:
-        '201': { $ref: '#/components/responses/RentAllocationItem' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+      responses: { '201': { $ref: '#/components/responses/RentAllocationItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '409': { $ref: '#/components/responses/Conflict' } }
+
+  /api/v1/maintenance/vendors:
+    parameters: *businessIdentity
+    get:
+      tags: [Maintenance]
+      operationId: listMaintenanceVendors
+      responses: { '200': { $ref: '#/components/responses/VendorList' } }
+    post:
+      tags: [Maintenance]
+      operationId: createMaintenanceVendor
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/VendorCreate' } } } }
+      responses: { '201': { $ref: '#/components/responses/VendorItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '403': { $ref: '#/components/responses/Forbidden' } }
+
+  /api/v1/maintenance/requests:
+    parameters: *businessIdentity
+    get:
+      tags: [Maintenance]
+      operationId: listMaintenanceRequests
+      responses: { '200': { $ref: '#/components/responses/MaintenanceRequestList' } }
+    post:
+      tags: [Maintenance]
+      operationId: createMaintenanceRequest
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceRequestCreate' } } } }
+      responses: { '201': { $ref: '#/components/responses/MaintenanceRequestItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '404': { $ref: '#/components/responses/NotFound' } }
+
+  /api/v1/maintenance/requests/{requestID}/status:
+    parameters:
+      - { $ref: '#/components/parameters/OrganizationScope' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/RequestID' }
+    patch:
+      tags: [Maintenance]
+      operationId: updateMaintenanceRequestStatus
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceRequestStatusUpdate' } } } }
+      responses: { '200': { $ref: '#/components/responses/MaintenanceRequestItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '409': { $ref: '#/components/responses/Conflict' } }
+
+  /api/v1/maintenance/work-orders:
+    parameters: *businessIdentity
+    get:
+      tags: [Maintenance]
+      operationId: listWorkOrders
+      responses: { '200': { $ref: '#/components/responses/WorkOrderList' } }
+    post:
+      tags: [Maintenance]
+      operationId: createWorkOrder
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderCreate' } } } }
+      responses: { '201': { $ref: '#/components/responses/WorkOrderItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '409': { $ref: '#/components/responses/Conflict' } }
+
+  /api/v1/maintenance/work-orders/{workOrderID}/status:
+    parameters:
+      - { $ref: '#/components/parameters/OrganizationScope' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/WorkOrderID' }
+    patch:
+      tags: [Maintenance]
+      operationId: updateWorkOrderStatus
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderStatusUpdate' } } } }
+      responses: { '200': { $ref: '#/components/responses/WorkOrderItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '409': { $ref: '#/components/responses/Conflict' } }
+
+  /api/v1/maintenance/quotes:
+    parameters: *businessIdentity
+    get:
+      tags: [Maintenance]
+      operationId: listMaintenanceQuotes
+      responses: { '200': { $ref: '#/components/responses/MaintenanceQuoteList' } }
+    post:
+      tags: [Maintenance]
+      operationId: createMaintenanceQuote
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceQuoteCreate' } } } }
+      responses: { '201': { $ref: '#/components/responses/MaintenanceQuoteItem' }, '400': { $ref: '#/components/responses/BadRequest' } }
+
+  /api/v1/maintenance/quotes/{quoteID}/decision:
+    parameters:
+      - { $ref: '#/components/parameters/OrganizationScope' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/QuoteID' }
+    post:
+      tags: [Maintenance]
+      operationId: decideMaintenanceQuote
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceQuoteDecision' } } } }
+      responses: { '200': { $ref: '#/components/responses/MaintenanceQuoteItem' }, '400': { $ref: '#/components/responses/BadRequest' }, '403': { $ref: '#/components/responses/Forbidden' }, '409': { $ref: '#/components/responses/Conflict' } }
+
+  /api/v1/maintenance/evidence:
+    parameters: *businessIdentity
+    get:
+      tags: [Maintenance]
+      operationId: listMaintenanceEvidence
+      responses: { '200': { $ref: '#/components/responses/MaintenanceEvidenceList' } }
+    post:
+      tags: [Maintenance]
+      operationId: createMaintenanceEvidence
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceEvidenceCreate' } } } }
+      responses: { '201': { $ref: '#/components/responses/MaintenanceEvidenceItem' }, '400': { $ref: '#/components/responses/BadRequest' } }
 
 components:
+  securitySchemes:
+    OIDCBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC JWT verified against configured issuer discovery/JWKS and audience.
+
   parameters:
-    DevelopmentOrganization:
+    OrganizationScope:
       name: X-Organization-ID
       in: header
       required: true
-      description: Development-only organization identity. Production will use verified provider claims.
+      description: Requested organization UUID. Membership and route permission are verified server-side.
       schema: { type: string, format: uuid }
     DevelopmentUser:
       name: X-User-ID
       in: header
-      required: true
-      description: Development-only user identity. Membership and role are still verified server-side.
+      required: false
+      description: Development/test-only internal user fallback when no Bearer token is supplied.
       schema: { type: string, format: uuid }
     PropertyID: { name: propertyID, in: path, required: true, schema: { type: string, format: uuid } }
     UnitID: { name: unitID, in: path, required: true, schema: { type: string, format: uuid } }
@@ -312,8 +364,16 @@ components:
     TenancyID: { name: tenancyID, in: path, required: true, schema: { type: string, format: uuid } }
     LeaseID: { name: leaseID, in: path, required: true, schema: { type: string, format: uuid } }
     OwnerID: { name: ownerID, in: path, required: true, schema: { type: string, format: uuid } }
+    RequestID: { name: requestID, in: path, required: true, schema: { type: string, format: uuid } }
+    WorkOrderID: { name: workOrderID, in: path, required: true, schema: { type: string, format: uuid } }
+    QuoteID: { name: quoteID, in: path, required: true, schema: { type: string, format: uuid } }
 
   responses:
+    BadRequest: &problem { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } } }
+    Unauthorized: { <<: *problem, description: Authentication required or token invalid }
+    Forbidden: { <<: *problem, description: Identity not linked, membership missing, or permission denied }
+    NotFound: { <<: *problem, description: Resource not found in organization scope }
+    Conflict: { <<: *problem, description: Lifecycle, uniqueness, ownership, or balance conflict }
     PropertyItem: { description: Property, content: { application/json: { schema: { $ref: '#/components/schemas/PropertyEnvelope' } } } }
     PropertyList: { description: Properties, content: { application/json: { schema: { $ref: '#/components/schemas/PropertyListEnvelope' } } } }
     UnitItem: { description: Unit, content: { application/json: { schema: { $ref: '#/components/schemas/UnitEnvelope' } } } }
@@ -333,32 +393,25 @@ components:
     RentPaymentItem: { description: Rent payment, content: { application/json: { schema: { $ref: '#/components/schemas/RentPaymentEnvelope' } } } }
     RentPaymentList: { description: Rent payments, content: { application/json: { schema: { $ref: '#/components/schemas/RentPaymentListEnvelope' } } } }
     RentAllocationItem: { description: Rent allocation, content: { application/json: { schema: { $ref: '#/components/schemas/RentAllocationEnvelope' } } } }
-    BadRequest: { description: Invalid request, content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } } }
-    Unauthorized: { description: Identity is missing, content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } } }
-    Forbidden: { description: Membership or permission denied, content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } } }
-    NotFound: { description: Resource not found in organization scope, content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } } }
-    Conflict: { description: Lifecycle, ownership, uniqueness, or financial balance conflict, content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } } }
+    VendorItem: { description: Vendor, content: { application/json: { schema: { $ref: '#/components/schemas/VendorEnvelope' } } } }
+    VendorList: { description: Vendors, content: { application/json: { schema: { $ref: '#/components/schemas/VendorListEnvelope' } } } }
+    MaintenanceRequestItem: { description: Maintenance request, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceRequestEnvelope' } } } }
+    MaintenanceRequestList: { description: Maintenance requests, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceRequestListEnvelope' } } } }
+    WorkOrderItem: { description: Work order, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderEnvelope' } } } }
+    WorkOrderList: { description: Work orders, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderListEnvelope' } } } }
+    MaintenanceQuoteItem: { description: Maintenance quote, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceQuoteEnvelope' } } } }
+    MaintenanceQuoteList: { description: Maintenance quotes, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceQuoteListEnvelope' } } } }
+    MaintenanceEvidenceItem: { description: Maintenance evidence, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceEvidenceEnvelope' } } } }
+    MaintenanceEvidenceList: { description: Maintenance evidence, content: { application/json: { schema: { $ref: '#/components/schemas/MaintenanceEvidenceListEnvelope' } } } }
 
   schemas:
-    HealthResponse:
-      type: object
-      required: [status, service, timestamp]
-      properties:
-        status: { type: string, const: ok }
-        service: { type: string }
-        timestamp: { type: string, format: date-time }
-    ApiInfo:
-      type: object
-      required: [name, version]
-      properties: { name: { type: string }, version: { type: string } }
+    HealthResponse: { type: object, required: [status, service, timestamp], properties: { status: { type: string }, service: { type: string }, timestamp: { type: string, format: date-time } } }
+    ApiInfo: { type: object, required: [name, version], properties: { name: { type: string }, version: { type: string } } }
     ProblemEnvelope:
       type: object
       required: [error]
       properties:
-        error:
-          type: object
-          required: [code, message]
-          properties: { code: { type: string }, message: { type: string } }
+        error: { type: object, required: [code, message], properties: { code: { type: string }, message: { type: string } } }
 
     Property:
       type: object
@@ -368,44 +421,19 @@ components:
         organizationId: { type: string, format: uuid }
         referenceCode: { type: string }
         name: { type: string }
-        propertyType: { type: string, enum: [house, apartment, building, commercial, land, other] }
+        propertyType: { type: string }
         addressLine1: { type: string }
         addressLine2: { type: string }
         city: { type: string }
         region: { type: string }
         postalCode: { type: string }
-        countryCode: { type: string, minLength: 2, maxLength: 2 }
+        countryCode: { type: string }
         status: { type: string, enum: [active, inactive, archived] }
         externalAvaraPropertyId: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    PropertyCreate:
-      type: object
-      required: [name, propertyType, addressLine1, city, countryCode]
-      properties:
-        referenceCode: { type: string }
-        name: { type: string }
-        propertyType: { type: string }
-        addressLine1: { type: string }
-        addressLine2: { type: string }
-        city: { type: string }
-        region: { type: string }
-        postalCode: { type: string }
-        countryCode: { type: string }
-        externalAvaraPropertyId: { type: string }
-    PropertyUpdate:
-      type: object
-      properties:
-        referenceCode: { type: string }
-        name: { type: string }
-        propertyType: { type: string }
-        addressLine1: { type: string }
-        addressLine2: { type: string }
-        city: { type: string }
-        region: { type: string }
-        postalCode: { type: string }
-        countryCode: { type: string }
-        status: { type: string }
+    PropertyCreate: { type: object, required: [name, propertyType, addressLine1, city, countryCode], additionalProperties: true }
+    PropertyUpdate: { type: object, additionalProperties: true }
 
     Unit:
       type: object
@@ -423,17 +451,7 @@ components:
         occupancyStatus: { type: string, enum: [vacant, occupied, reserved, unavailable] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    UnitCreate:
-      type: object
-      required: [referenceCode, label]
-      properties:
-        referenceCode: { type: string }
-        label: { type: string }
-        bedrooms: { type: number }
-        bathrooms: { type: number }
-        floorArea: { type: number }
-        floorAreaUnit: { type: string, enum: [sqft, sqm] }
-        occupancyStatus: { type: string, enum: [vacant, occupied, reserved, unavailable] }
+    UnitCreate: { type: object, required: [referenceCode, label], additionalProperties: true }
     UnitUpdate: { type: object, additionalProperties: true }
 
     Tenant:
@@ -448,19 +466,12 @@ components:
         status: { type: string, enum: [prospect, active, former, blocked] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    TenantCreate:
-      type: object
-      required: [legalName]
-      properties:
-        legalName: { type: string }
-        email: { type: string, format: email }
-        phone: { type: string }
-        status: { type: string, enum: [prospect, active, former, blocked], default: prospect }
+    TenantCreate: { type: object, required: [legalName], additionalProperties: true }
     TenantUpdate: { type: object, additionalProperties: true }
 
     Tenancy:
       type: object
-      required: [id, organizationId, unitId, unitLabel, propertyName, primaryTenantId, primaryTenantName, occupantCount, startDate, status, createdAt, updatedAt]
+      required: [id, organizationId, unitId, primaryTenantId, startDate, status]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -475,21 +486,12 @@ components:
         status: { type: string, enum: [upcoming, active, ended, cancelled] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    TenancyCreate:
-      type: object
-      required: [unitId, primaryTenantId, startDate]
-      properties:
-        unitId: { type: string, format: uuid }
-        primaryTenantId: { type: string, format: uuid }
-        occupantTenantIds: { type: array, items: { type: string, format: uuid } }
-        startDate: { type: string, format: date }
-        endDate: { type: string, format: date }
-        status: { type: string, enum: [upcoming, active, ended, cancelled], default: upcoming }
+    TenancyCreate: { type: object, required: [unitId, primaryTenantId, startDate], additionalProperties: true }
     TenancyUpdate: { type: object, additionalProperties: true }
 
     Lease:
       type: object
-      required: [id, organizationId, tenancyId, referenceCode, propertyName, unitLabel, primaryTenantName, startDate, endDate, rentAmountMinor, depositAmountMinor, currency, dueDay, status, createdAt, updatedAt]
+      required: [id, organizationId, tenancyId, referenceCode, startDate, endDate, rentAmountMinor, currency, dueDay, status]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -500,56 +502,33 @@ components:
         primaryTenantName: { type: string }
         startDate: { type: string, format: date }
         endDate: { type: string, format: date }
-        rentAmountMinor: { type: integer, format: int64, description: Monthly rent in currency minor units. }
+        rentAmountMinor: { type: integer, format: int64 }
         depositAmountMinor: { type: integer, format: int64 }
-        currency: { type: string, minLength: 3, maxLength: 3 }
+        currency: { type: string }
         dueDay: { type: integer, minimum: 1, maximum: 31 }
         status: { type: string, enum: [draft, active, expired, terminated, cancelled] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    LeaseCreate:
-      type: object
-      required: [tenancyId, referenceCode, startDate, endDate, rentAmountMinor, currency, dueDay]
-      properties:
-        tenancyId: { type: string, format: uuid }
-        referenceCode: { type: string }
-        startDate: { type: string, format: date }
-        endDate: { type: string, format: date }
-        rentAmountMinor: { type: integer, format: int64, minimum: 1 }
-        depositAmountMinor: { type: integer, format: int64, minimum: 0, default: 0 }
-        currency: { type: string, minLength: 3, maxLength: 3 }
-        dueDay: { type: integer, minimum: 1, maximum: 31 }
-        status: { type: string, enum: [draft, active], default: draft }
-    LeaseUpdate:
-      type: object
-      properties: { status: { type: string, enum: [draft, active, expired, terminated, cancelled] } }
+    LeaseCreate: { type: object, required: [tenancyId, referenceCode, startDate, endDate, rentAmountMinor, currency, dueDay], additionalProperties: true }
+    LeaseUpdate: { type: object, properties: { status: { type: string } } }
 
     Owner:
       type: object
-      required: [id, organizationId, legalName, ownerType, status, createdAt, updatedAt]
+      required: [id, organizationId, legalName, ownerType, status]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
         legalName: { type: string }
         ownerType: { type: string, enum: [individual, company] }
-        email: { type: string, format: email }
+        email: { type: string }
         phone: { type: string }
         status: { type: string, enum: [active, inactive] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    OwnerCreate:
-      type: object
-      required: [legalName]
-      properties:
-        legalName: { type: string }
-        ownerType: { type: string, enum: [individual, company], default: individual }
-        email: { type: string, format: email }
-        phone: { type: string }
-        status: { type: string, enum: [active, inactive], default: active }
-
+    OwnerCreate: { type: object, required: [legalName], additionalProperties: true }
     OwnershipInterest:
       type: object
-      required: [id, organizationId, propertyId, propertyName, ownerId, ownerName, ownershipBps, effectiveFrom, createdAt]
+      required: [id, organizationId, propertyId, ownerId, ownershipBps, effectiveFrom]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -557,22 +536,15 @@ components:
         propertyName: { type: string }
         ownerId: { type: string, format: uuid }
         ownerName: { type: string }
-        ownershipBps: { type: integer, minimum: 1, maximum: 10000, description: 10000 basis points equals 100%. }
+        ownershipBps: { type: integer, minimum: 1, maximum: 10000 }
         effectiveFrom: { type: string, format: date }
         effectiveTo: { type: string, format: date }
         createdAt: { type: string, format: date-time }
-    OwnershipInterestCreate:
-      type: object
-      required: [ownerId, propertyId, ownershipBps, effectiveFrom]
-      properties:
-        ownerId: { type: string, format: uuid }
-        propertyId: { type: string, format: uuid }
-        ownershipBps: { type: integer, minimum: 1, maximum: 10000 }
-        effectiveFrom: { type: string, format: date }
+    OwnershipInterestCreate: { type: object, required: [ownerId, propertyId, ownershipBps, effectiveFrom], additionalProperties: false, properties: { ownerId: { type: string, format: uuid }, propertyId: { type: string, format: uuid }, ownershipBps: { type: integer }, effectiveFrom: { type: string, format: date } } }
 
     RentObligation:
       type: object
-      required: [id, organizationId, leaseId, leaseReference, propertyName, unitLabel, primaryTenantName, period, dueDate, amountMinor, allocatedMinor, balanceMinor, currency, state, createdAt, updatedAt]
+      required: [id, organizationId, leaseId, period, dueDate, amountMinor, allocatedMinor, balanceMinor, currency, state]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -581,25 +553,19 @@ components:
         propertyName: { type: string }
         unitLabel: { type: string }
         primaryTenantName: { type: string }
-        period: { type: string, pattern: '^\d{4}-\d{2}$' }
+        period: { type: string }
         dueDate: { type: string, format: date }
         amountMinor: { type: integer, format: int64 }
         allocatedMinor: { type: integer, format: int64 }
         balanceMinor: { type: integer, format: int64 }
-        currency: { type: string, minLength: 3, maxLength: 3 }
+        currency: { type: string }
         state: { type: string, enum: [open, overdue, paid, void] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    RentObligationCreate:
-      type: object
-      required: [leaseId, period]
-      properties:
-        leaseId: { type: string, format: uuid }
-        period: { type: string, pattern: '^\d{4}-\d{2}$' }
-
+    RentObligationCreate: { type: object, required: [leaseId, period], properties: { leaseId: { type: string, format: uuid }, period: { type: string, pattern: '^\d{4}-\d{2}$' } } }
     RentPayment:
       type: object
-      required: [id, organizationId, tenantId, tenantName, amountMinor, allocatedMinor, unallocatedMinor, currency, receivedAt, method, status, createdAt]
+      required: [id, organizationId, tenantId, amountMinor, allocatedMinor, unallocatedMinor, currency, receivedAt, method, status]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -608,40 +574,120 @@ components:
         amountMinor: { type: integer, format: int64 }
         allocatedMinor: { type: integer, format: int64 }
         unallocatedMinor: { type: integer, format: int64 }
-        currency: { type: string, minLength: 3, maxLength: 3 }
+        currency: { type: string }
         receivedAt: { type: string, format: date }
         method: { type: string, enum: [cash, bank_transfer, card, online, other] }
         referenceCode: { type: string }
         status: { type: string, enum: [posted, void] }
         createdAt: { type: string, format: date-time }
-    RentPaymentCreate:
-      type: object
-      required: [tenantId, amountMinor, currency, receivedAt, method]
-      properties:
-        tenantId: { type: string, format: uuid }
-        amountMinor: { type: integer, format: int64, minimum: 1 }
-        currency: { type: string, minLength: 3, maxLength: 3 }
-        receivedAt: { type: string, format: date }
-        method: { type: string, enum: [cash, bank_transfer, card, online, other] }
-        referenceCode: { type: string }
+    RentPaymentCreate: { type: object, required: [tenantId, amountMinor, currency, receivedAt, method], additionalProperties: true }
+    RentAllocation: { type: object, required: [id, organizationId, paymentId, obligationId, amountMinor, createdAt], properties: { id: { type: string, format: uuid }, organizationId: { type: string, format: uuid }, paymentId: { type: string, format: uuid }, obligationId: { type: string, format: uuid }, amountMinor: { type: integer, format: int64 }, createdAt: { type: string, format: date-time } } }
+    RentAllocationCreate: { type: object, required: [paymentId, obligationId, amountMinor], properties: { paymentId: { type: string, format: uuid }, obligationId: { type: string, format: uuid }, amountMinor: { type: integer, format: int64, minimum: 1 } } }
 
-    RentAllocation:
+    Vendor:
       type: object
-      required: [id, organizationId, paymentId, obligationId, amountMinor, createdAt]
+      required: [id, organizationId, name, trade, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
-        paymentId: { type: string, format: uuid }
-        obligationId: { type: string, format: uuid }
-        amountMinor: { type: integer, format: int64 }
+        name: { type: string }
+        trade: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        status: { type: string, enum: [active, inactive] }
         createdAt: { type: string, format: date-time }
-    RentAllocationCreate:
+        updatedAt: { type: string, format: date-time }
+    VendorCreate: { type: object, required: [name, trade], additionalProperties: true }
+
+    MaintenanceRequest:
       type: object
-      required: [paymentId, obligationId, amountMinor]
+      required: [id, organizationId, propertyId, propertyName, title, description, category, priority, status, createdAt, updatedAt]
       properties:
-        paymentId: { type: string, format: uuid }
-        obligationId: { type: string, format: uuid }
-        amountMinor: { type: integer, format: int64, minimum: 1 }
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        propertyId: { type: string, format: uuid }
+        propertyName: { type: string }
+        unitId: { type: string, format: uuid }
+        unitLabel: { type: string }
+        tenantId: { type: string, format: uuid }
+        tenantName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        category: { type: string }
+        priority: { type: string, enum: [low, normal, high, urgent] }
+        status: { type: string, enum: [open, triaged, in_progress, resolved, cancelled] }
+        resolvedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MaintenanceRequestCreate: { type: object, required: [propertyId, title, description, category], additionalProperties: true }
+    MaintenanceRequestStatusUpdate: { type: object, required: [status], properties: { status: { type: string, enum: [open, triaged, in_progress, resolved, cancelled] } } }
+
+    WorkOrder:
+      type: object
+      required: [id, organizationId, maintenanceRequestId, summary, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        maintenanceRequestId: { type: string, format: uuid }
+        requestTitle: { type: string }
+        propertyName: { type: string }
+        unitLabel: { type: string }
+        vendorId: { type: string, format: uuid }
+        vendorName: { type: string }
+        assignedUserId: { type: string, format: uuid }
+        summary: { type: string }
+        status: { type: string, enum: [planned, assigned, in_progress, completed, cancelled] }
+        scheduledFor: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WorkOrderCreate: { type: object, required: [maintenanceRequestId, summary], additionalProperties: true }
+    WorkOrderStatusUpdate: { type: object, required: [status], properties: { status: { type: string, enum: [planned, assigned, in_progress, completed, cancelled] } } }
+
+    MaintenanceQuote:
+      type: object
+      required: [id, organizationId, workOrderId, vendorId, amountMinor, currency, scopeSummary, status, submittedAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        workOrderId: { type: string, format: uuid }
+        workOrderSummary: { type: string }
+        vendorId: { type: string, format: uuid }
+        vendorName: { type: string }
+        amountMinor: { type: integer, format: int64 }
+        currency: { type: string }
+        scopeSummary: { type: string }
+        status: { type: string, enum: [submitted, approved, rejected, withdrawn] }
+        submittedAt: { type: string, format: date-time }
+        reviewedAt: { type: string, format: date-time }
+        reviewedByUserId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MaintenanceQuoteCreate: { type: object, required: [workOrderId, vendorId, amountMinor, currency, scopeSummary], additionalProperties: false, properties: { workOrderId: { type: string, format: uuid }, vendorId: { type: string, format: uuid }, amountMinor: { type: integer, format: int64, minimum: 1 }, currency: { type: string }, scopeSummary: { type: string } } }
+    MaintenanceQuoteDecision: { type: object, required: [decision], properties: { decision: { type: string, enum: [approved, rejected] } } }
+
+    MaintenanceEvidence:
+      type: object
+      required: [id, organizationId, workOrderId, evidenceType, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        workOrderId: { type: string, format: uuid }
+        evidenceType: { type: string, enum: [note, photo, invoice, receipt, other] }
+        note: { type: string }
+        storageKey: { type: string }
+        submittedByUserId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    MaintenanceEvidenceCreate:
+      type: object
+      required: [workOrderId, evidenceType]
+      description: At least one of note or storageKey must be present; enforced by the backend.
+      properties:
+        workOrderId: { type: string, format: uuid }
+        evidenceType: { type: string, enum: [note, photo, invoice, receipt, other] }
+        note: { type: string }
+        storageKey: { type: string }
 
     PropertyEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Property' } } }
     PropertyListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Property' } } } }
@@ -662,3 +708,13 @@ components:
     RentPaymentEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/RentPayment' } } }
     RentPaymentListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/RentPayment' } } } }
     RentAllocationEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/RentAllocation' } } }
+    VendorEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Vendor' } } }
+    VendorListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Vendor' } } } }
+    MaintenanceRequestEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/MaintenanceRequest' } } }
+    MaintenanceRequestListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/MaintenanceRequest' } } } }
+    WorkOrderEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/WorkOrder' } } }
+    WorkOrderListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/WorkOrder' } } } }
+    MaintenanceQuoteEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/MaintenanceQuote' } } }
+    MaintenanceQuoteListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/MaintenanceQuote' } } } }
+    MaintenanceEvidenceEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/MaintenanceEvidence' } } }
+    MaintenanceEvidenceListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/MaintenanceEvidence' } } } }

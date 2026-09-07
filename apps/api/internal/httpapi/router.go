@@ -16,6 +16,7 @@ import (
 )
 
 type Dependencies struct {
+	Authentication           *auth.Authenticator
 	Authorization            *auth.Service
 	Properties               *properties.Service
 	Units                    *units.Service
@@ -55,7 +56,7 @@ func (r *Router) routes(deps Dependencies) {
 	})
 
 	protect := func(permission auth.Permission, handler http.HandlerFunc) http.Handler {
-		return requirePermission(deps.AllowDevelopmentIdentity, deps.Authorization, permission, handler)
+		return requirePermissionWithAuthentication(deps.AllowDevelopmentIdentity, deps.Authentication, deps.Authorization, permission, handler)
 	}
 
 	if deps.Properties != nil {

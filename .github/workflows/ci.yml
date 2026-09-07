@@ -70,7 +70,13 @@ jobs:
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000002_people_leasing.up.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000003_owners_rent.up.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000004_maintenance_operations.up.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000005_user_identities.up.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-seed.sql
+      - name: Verify identity mapping seed
+        env:
+          PGPASSWORD: property_os
+        run: |
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT user_id || ':' || subject FROM user_identities WHERE issuer = 'https://idp.example.invalid'")" = "22222222-2222-2222-2222-222222222222:property-os-dev-user"
       - name: Verify leasing seed
         env:
           PGPASSWORD: property_os
