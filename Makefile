@@ -1,4 +1,4 @@
-.PHONY: db-up db-down migrate-up migrate-people migrate-finance migrate-maintenance migrate-identity migrate-documents migrate-notifications migrate-agent-actions migrate-portals migrate-org-settings migrate-accounting migrate-inspections migrate-all migrate-down migrate-inspections-down migrate-accounting-down migrate-org-settings-down migrate-portals-down migrate-agent-actions-down migrate-notifications-down migrate-documents-down migrate-identity-down migrate-maintenance-down migrate-finance-down migrate-people-down seed api worker mcp web test-api build-api build-web
+.PHONY: db-up db-down migrate-up migrate-people migrate-finance migrate-maintenance migrate-identity migrate-documents migrate-notifications migrate-agent-actions migrate-portals migrate-org-settings migrate-accounting migrate-inspections migrate-payment-providers migrate-all migrate-down migrate-payment-providers-down migrate-inspections-down migrate-accounting-down migrate-org-settings-down migrate-portals-down migrate-agent-actions-down migrate-notifications-down migrate-documents-down migrate-identity-down migrate-maintenance-down migrate-finance-down migrate-people-down seed api worker mcp web test-api build-api build-web
 
 db-up:
 	docker compose up -d postgres
@@ -30,8 +30,12 @@ migrate-accounting:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000011_accounting_controls.up.sql
 migrate-inspections:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000012_inspections.up.sql
-migrate-all: migrate-up migrate-people migrate-finance migrate-maintenance migrate-identity migrate-documents migrate-notifications migrate-agent-actions migrate-portals migrate-org-settings migrate-accounting migrate-inspections
+migrate-payment-providers:
+	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000013_payment_provider_events.up.sql
+migrate-all: migrate-up migrate-people migrate-finance migrate-maintenance migrate-identity migrate-documents migrate-notifications migrate-agent-actions migrate-portals migrate-org-settings migrate-accounting migrate-inspections migrate-payment-providers
 
+migrate-payment-providers-down:
+	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000013_payment_provider_events.down.sql
 migrate-inspections-down:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000012_inspections.down.sql
 migrate-accounting-down:
@@ -54,7 +58,7 @@ migrate-finance-down:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000003_owners_rent.down.sql
 migrate-people-down:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000002_people_leasing.down.sql
-migrate-down: migrate-inspections-down migrate-accounting-down migrate-org-settings-down migrate-portals-down migrate-agent-actions-down migrate-notifications-down migrate-documents-down migrate-identity-down migrate-maintenance-down migrate-finance-down migrate-people-down
+migrate-down: migrate-payment-providers-down migrate-inspections-down migrate-accounting-down migrate-org-settings-down migrate-portals-down migrate-agent-actions-down migrate-notifications-down migrate-documents-down migrate-identity-down migrate-maintenance-down migrate-finance-down migrate-people-down
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000001_core.down.sql
 
 seed:
@@ -65,6 +69,7 @@ seed:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < scripts/dev-portal-seed.sql
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < scripts/dev-accounting-seed.sql
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < scripts/dev-inspection-seed.sql
+	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < scripts/dev-payment-provider-seed.sql
 
 api:
 	cd apps/api && go run ./cmd/api
