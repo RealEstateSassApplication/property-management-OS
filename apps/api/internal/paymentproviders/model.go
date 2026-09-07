@@ -26,8 +26,9 @@ type ProcessResult struct {
 }
 
 var (
-	ErrInvalidSignature = errors.New("invalid webhook signature")
-	ErrInvalidEvent     = errors.New("invalid payment provider event")
-	ErrTenantNotFound   = errors.New("tenant not found")
-	ErrDuplicateRef     = errors.New("payment reference already exists")
+	ErrInvalidSignature     = errors.New("invalid webhook signature")
+	ErrInvalidEvent         = errors.New("invalid payment provider event")
+	ErrEventPayloadConflict = errors.New("payment provider event id was reused with different payload")
+	ErrTenantNotFound       = errors.New("tenant not found")
+	ErrDuplicateRef         = errors.New("payment reference already exists")
 )
