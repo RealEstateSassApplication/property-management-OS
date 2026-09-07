@@ -103,12 +103,17 @@ func (r *PostgresRepository) CreateInterest(ctx context.Context, organizationID 
 	if !ownerExists {
 		return OwnershipInterest{}, ErrOwnerNotFound
 	}
-	var propertyExists bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM properties WHERE organization_id = $1 AND id = $2)`, organizationID, input.PropertyID).Scan(&propertyExists); err != nil {
+
+	var lockedPropertyID string
+	if err := tx.QueryRow(ctx, `
+		SELECT id FROM properties
+		WHERE organization_id = $1 AND id = $2
+		FOR UPDATE
+	`, organizationID, input.PropertyID).Scan(&lockedPropertyID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return OwnershipInterest{}, ErrPropertyNotFound
+		}
 		return OwnershipInterest{}, err
-	}
-	if !propertyExists {
-		return OwnershipInterest{}, ErrPropertyNotFound
 	}
 
 	var currentForOwner bool
@@ -129,7 +134,6 @@ func (r *PostgresRepository) CreateInterest(ctx context.Context, organizationID 
 		SELECT COALESCE(SUM(ownership_bps), 0)
 		FROM ownership_interests
 		WHERE organization_id = $1 AND property_id = $2 AND effective_to IS NULL
-		FOR SHARE
 	`, organizationID, input.PropertyID).Scan(&currentBps); err != nil {
 		return OwnershipInterest{}, err
 	}

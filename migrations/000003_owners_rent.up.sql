@@ -95,7 +95,6 @@ CREATE TABLE payment_allocations (
     obligation_id UUID NOT NULL,
     amount_minor BIGINT NOT NULL CHECK (amount_minor > 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (payment_id, obligation_id),
     FOREIGN KEY (payment_id, organization_id)
         REFERENCES payments(id, organization_id) ON DELETE RESTRICT,
     FOREIGN KEY (obligation_id, organization_id)

@@ -1,2 +1,2 @@
-// Package rent owns rent obligations, ledger rules, allocations, credits, adjustments, and arrears state.
+// Package rent manages rent obligations, payments, allocations, and derived balances.
 package rent
