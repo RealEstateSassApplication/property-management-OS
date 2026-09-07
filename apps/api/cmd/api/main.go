@@ -24,6 +24,7 @@ import (
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/orgadmin"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/paymentproviders"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/portals"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
@@ -103,6 +104,7 @@ func main() {
 	portalService := portals.NewService(portals.NewPostgresRepository(pool), maintenanceService)
 	organizationAdminService := orgadmin.NewService(orgadmin.NewPostgresRepository(pool))
 	reportingService := reporting.NewService(reporting.NewPostgresRepository(pool))
+	paymentProviderService := paymentproviders.NewService(paymentproviders.NewPostgresRepository(pool), cfg.PaymentWebhookSecret)
 
 	handler := httpapi.NewRouter(httpapi.Dependencies{
 		Authentication: authenticationService, Authorization: authorizationService,
@@ -114,9 +116,11 @@ func main() {
 		AllowDevelopmentIdentity: allowDevelopmentIdentity,
 	})
 	handler = httpapi.WithInspectionRoutes(handler, authenticationService, authorizationService, allowDevelopmentIdentity, inspectionService)
+	handler = httpapi.WithProductionRoutes(handler, pool, paymentProviderService)
+
 	server := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
-		logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment, "oidc", authenticationService != nil, "documentStorage", documentStorage != nil)
+		logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment, "oidc", authenticationService != nil, "documentStorage", documentStorage != nil, "paymentWebhook", paymentProviderService.Enabled())
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("api server stopped unexpectedly", "error", err)
 			os.Exit(1)

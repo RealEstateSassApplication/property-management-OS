@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: Property Management OS Payment Ingestion API
+  version: 0.14.0
+  description: Public, provider-authenticated payment ingestion and readiness endpoints.
+servers:
+  - url: http://localhost:8080
+paths:
+  /readyz:
+    get:
+      operationId: getReadiness
+      security: []
+      responses:
+        '200':
+          description: API is ready to receive traffic.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status: { type: string, const: ready }
+                  service: { type: string, const: property-management-os-api }
+        '503':
+          description: Database readiness failed.
+  /api/v1/integrations/payments/generic-hmac/webhook:
+    post:
+      operationId: ingestGenericHMACPayment
+      security: []
+      parameters:
+        - in: header
+          name: X-PropertyOS-Signature
+          required: true
+          schema: { type: string, pattern: '^sha256=[0-9a-f]{64}$' }
+          description: HMAC-SHA256 of the exact raw request body using PAYMENT_WEBHOOK_SECRET.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaidEvent' }
+      responses:
+        '200':
+          description: Event processed or an identical delivery was already processed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ProcessResult' }
+        '400': { description: Event shape or values are invalid. }
+        '401': { description: Signature is invalid. }
+        '409': { description: Event ID payload conflict, tenant rejection, or duplicate payment reference. }
+        '413': { description: Request body exceeds 1 MiB. }
+        '503': { description: Payment webhook is not configured. }
+components:
+  schemas:
+    PaidEvent:
+      type: object
+      additionalProperties: false
+      required: [eventId, eventType, organizationId, tenantId, amountMinor, currency, receivedAt, referenceCode]
+      properties:
+        eventId: { type: string, minLength: 1 }
+        eventType: { type: string, const: payment.paid }
+        organizationId: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        amountMinor: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        receivedAt: { type: string, format: date }
+        referenceCode: { type: string, minLength: 1 }
+    ProcessResult:
+      type: object
+      required: [provider, eventId, status, duplicate, createdAt]
+      properties:
+        provider: { type: string }
+        eventId: { type: string }
+        status: { type: string, enum: [received, processed, rejected] }
+        paymentId: { type: string, format: uuid }
+        duplicate: { type: boolean }
+        createdAt: { type: string, format: date-time }
