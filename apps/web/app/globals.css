@@ -34,6 +34,9 @@ button, input, select { font: inherit; }
 .navItem { padding: 11px 12px; border-radius: 8px; color: #b9c2bc; font-size: 14px; transition: 140ms ease; }
 .navItem:hover { background: rgba(255,255,255,.06); color: #fff; }
 .navItemActive { background: #f0efe9; color: #1b2b23; font-weight: 700; }
+.navItemDisabled { display: flex; align-items: center; justify-content: space-between; gap: 12px; opacity: .52; cursor: not-allowed; }
+.navItemDisabled:hover { background: transparent; color: #b9c2bc; }
+.navItemDisabled small { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .sidebarFoot { margin-top: auto; display: flex; align-items: center; gap: 9px; color: #9eaaa3; font-size: 11px; }
 .liveDot { width: 7px; height: 7px; border-radius: 50%; background: #84ad90; box-shadow: 0 0 0 4px rgba(132,173,144,.12); }
 
