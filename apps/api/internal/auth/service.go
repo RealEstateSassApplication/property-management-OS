@@ -34,7 +34,9 @@ func roleAllows(role string, permission Permission) bool {
 	case "agent":
 		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewRent || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == ProposeAgentActions
 	case "owner":
-		return false
+		return permission == ViewOwnerPortal
+	case "tenant":
+		return permission == ViewTenantPortal || permission == CreateTenantPortalRequest
 	default:
 		return false
 	}
