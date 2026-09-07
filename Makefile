@@ -1,4 +1,4 @@
-.PHONY: db-up db-down migrate-up migrate-people migrate-finance migrate-maintenance migrate-all migrate-down migrate-maintenance-down migrate-finance-down migrate-people-down seed api web test-api build-api build-web
+.PHONY: db-up db-down migrate-up migrate-people migrate-finance migrate-maintenance migrate-identity migrate-all migrate-down migrate-identity-down migrate-maintenance-down migrate-finance-down migrate-people-down seed api web test-api build-api build-web
 
 db-up:
 	docker compose up -d postgres
@@ -18,7 +18,13 @@ migrate-finance:
 migrate-maintenance:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000004_maintenance_operations.up.sql
 
-migrate-all: migrate-up migrate-people migrate-finance migrate-maintenance
+migrate-identity:
+	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000005_user_identities.up.sql
+
+migrate-all: migrate-up migrate-people migrate-finance migrate-maintenance migrate-identity
+
+migrate-identity-down:
+	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000005_user_identities.down.sql
 
 migrate-maintenance-down:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000004_maintenance_operations.down.sql
@@ -29,7 +35,7 @@ migrate-finance-down:
 migrate-people-down:
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000002_people_leasing.down.sql
 
-migrate-down: migrate-maintenance-down migrate-finance-down migrate-people-down
+migrate-down: migrate-identity-down migrate-maintenance-down migrate-finance-down migrate-people-down
 	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U $${POSTGRES_USER:-property_os} -d $${POSTGRES_DB:-property_os} < migrations/000001_core.down.sql
 
 seed:

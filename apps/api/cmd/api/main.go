@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,16 +30,40 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelStartup()
-
 	pool, err := database.Connect(startupCtx, cfg.DatabaseURL)
+	cancelStartup()
 	if err != nil {
 		logger.Error("database connection failed", "error", err)
 		os.Exit(1)
 	}
 	defer pool.Close()
 
-	authorizationService := auth.NewService(auth.NewPostgresRepository(pool))
+	authRepository := auth.NewPostgresRepository(pool)
+	authorizationService := auth.NewService(authRepository)
+	allowDevelopmentIdentity := cfg.Environment == "development" || cfg.Environment == "test"
+
+	var authenticationService *auth.Authenticator
+	issuerConfigured := strings.TrimSpace(cfg.OIDCIssuerURL) != ""
+	audienceConfigured := strings.TrimSpace(cfg.OIDCAudience) != ""
+	if issuerConfigured != audienceConfigured {
+		logger.Error("OIDC configuration is incomplete", "required", "OIDC_ISSUER_URL and OIDC_AUDIENCE must be configured together")
+		os.Exit(1)
+	}
+	if issuerConfigured {
+		authCtx, cancelAuth := context.WithTimeout(context.Background(), 10*time.Second)
+		verifier, err := auth.NewOIDCVerifier(authCtx, cfg.OIDCIssuerURL, cfg.OIDCAudience)
+		cancelAuth()
+		if err != nil {
+			logger.Error("OIDC provider initialization failed", "error", err)
+			os.Exit(1)
+		}
+		authenticationService = auth.NewAuthenticator(verifier, authRepository)
+	}
+	if !allowDevelopmentIdentity && authenticationService == nil {
+		logger.Error("production authentication is not configured", "required", "OIDC_ISSUER_URL and OIDC_AUDIENCE")
+		os.Exit(1)
+	}
+
 	propertyService := properties.NewService(properties.NewPostgresRepository(pool))
 	unitService := units.NewService(units.NewPostgresRepository(pool))
 	tenantService := tenants.NewService(tenants.NewPostgresRepository(pool))
@@ -49,6 +74,7 @@ func main() {
 	maintenanceService := maintenance.NewService(maintenance.NewPostgresRepository(pool))
 
 	handler := httpapi.NewRouter(httpapi.Dependencies{
+		Authentication:           authenticationService,
 		Authorization:            authorizationService,
 		Properties:               propertyService,
 		Units:                    unitService,
@@ -58,7 +84,7 @@ func main() {
 		Owners:                   ownerService,
 		Rent:                     rentService,
 		Maintenance:              maintenanceService,
-		AllowDevelopmentIdentity: cfg.Environment == "development" || cfg.Environment == "test",
+		AllowDevelopmentIdentity: allowDevelopmentIdentity,
 	})
 
 	server := &http.Server{
@@ -71,7 +97,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment)
+		logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment, "oidc", authenticationService != nil)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("api server stopped unexpectedly", "error", err)
 			os.Exit(1)

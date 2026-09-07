@@ -57,8 +57,8 @@ func TestDevelopmentAuthorizationContext(t *testing.T) {
 
 	withoutHeaders := httptest.NewRecorder()
 	handler.ServeHTTP(withoutHeaders, httptest.NewRequest(http.MethodGet, "/", nil))
-	if withoutHeaders.Code != http.StatusUnauthorized {
-		t.Fatalf("expected unauthorized without identity headers, got %d", withoutHeaders.Code)
+	if withoutHeaders.Code != http.StatusBadRequest {
+		t.Fatalf("expected bad request without organization header, got %d", withoutHeaders.Code)
 	}
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -86,7 +86,7 @@ func TestDevelopmentAuthorizationRejectsViewerWrite(t *testing.T) {
 	}
 }
 
-func TestDevelopmentIdentityDisabled(t *testing.T) {
+func TestDevelopmentIdentityDisabledRequiresBearer(t *testing.T) {
 	authorization := auth.NewService(fakeAuthRepository{membership: auth.Membership{Role: "admin"}})
 	handler := requirePermission(false, authorization, auth.ViewPortfolio, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
@@ -97,7 +97,7 @@ func TestDevelopmentIdentityDisabled(t *testing.T) {
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected development identity to be disabled, got %d", response.Code)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected bearer authentication to be required, got %d", response.Code)
 	}
 }

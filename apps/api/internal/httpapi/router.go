@@ -16,16 +16,17 @@ import (
 )
 
 type Dependencies struct {
-	Authorization            *auth.Service
-	Properties               *properties.Service
-	Units                    *units.Service
-	Tenants                  *tenants.Service
-	Tenancies                *tenancies.Service
-	Leases                   *leases.Service
-	Owners                   *owners.Service
-	Rent                     *rent.Service
-	Maintenance              *maintenance.Service
-	AllowDevelopmentIdentity bool
+	Authentication             *auth.Authenticator
+	Authorization              *auth.Service
+	Properties                 *properties.Service
+	Units                      *units.Service
+	Tenants                    *tenants.Service
+	Tenancies                  *tenancies.Service
+	Leases                     *leases.Service
+	Owners                     *owners.Service
+	Rent                       *rent.Service
+	Maintenance                *maintenance.Service
+	AllowDevelopmentIdentity   bool
 }
 
 type Router struct {
@@ -55,7 +56,7 @@ func (r *Router) routes(deps Dependencies) {
 	})
 
 	protect := func(permission auth.Permission, handler http.HandlerFunc) http.Handler {
-		return requirePermission(deps.AllowDevelopmentIdentity, deps.Authorization, permission, handler)
+		return requirePermissionWithAuthentication(deps.AllowDevelopmentIdentity, deps.Authentication, deps.Authorization, permission, handler)
 	}
 
 	if deps.Properties != nil {

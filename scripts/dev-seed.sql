@@ -10,6 +10,16 @@ INSERT INTO organization_memberships (organization_id, user_id, role)
 VALUES ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'admin')
 ON CONFLICT (organization_id, user_id) DO NOTHING;
 
+INSERT INTO user_identities (id, user_id, issuer, subject, last_seen_email)
+VALUES (
+    '15151515-1515-1515-1515-151515151515',
+    '22222222-2222-2222-2222-222222222222',
+    'https://idp.example.invalid',
+    'property-os-dev-user',
+    'dev@property-os.local'
+)
+ON CONFLICT (issuer, subject) DO NOTHING;
+
 INSERT INTO properties (
     id, organization_id, reference_code, name, property_type,
     address_line_1, city, region, country_code, status
