@@ -1,8 +1,13 @@
+ALTER TABLE rent_obligations ADD COLUMN base_amount_minor BIGINT;
+UPDATE rent_obligations SET base_amount_minor = amount_minor;
+ALTER TABLE rent_obligations ALTER COLUMN base_amount_minor SET NOT NULL;
+ALTER TABLE rent_obligations ADD CONSTRAINT rent_obligations_base_amount_positive CHECK (base_amount_minor > 0);
+
 CREATE TABLE rent_adjustments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     obligation_id UUID NOT NULL,
-    adjustment_type TEXT NOT NULL CHECK (adjustment_type IN ('charge', 'late_fee', 'credit', 'writeoff')),
+    adjustment_type TEXT NOT NULL CHECK (adjustment_type IN ('charge', 'late_fee', 'credit', 'writeoff', 'payment_reversal')),
     amount_minor BIGINT NOT NULL CHECK (amount_minor > 0),
     reason TEXT NOT NULL,
     created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -14,6 +19,41 @@ CREATE TABLE rent_adjustments (
 
 CREATE INDEX idx_rent_adjustments_obligation
     ON rent_adjustments (organization_id, obligation_id, created_at);
+
+CREATE FUNCTION apply_rent_adjustment_to_obligation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    delta BIGINT;
+BEGIN
+    delta := CASE
+        WHEN NEW.adjustment_type IN ('charge', 'late_fee', 'payment_reversal') THEN NEW.amount_minor
+        ELSE -NEW.amount_minor
+    END;
+
+    UPDATE rent_obligations
+    SET amount_minor = amount_minor + delta,
+        updated_at = now()
+    WHERE organization_id = NEW.organization_id
+      AND id = NEW.obligation_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'rent obligation not found for adjustment';
+    END IF;
+
+    IF (SELECT amount_minor FROM rent_obligations WHERE organization_id = NEW.organization_id AND id = NEW.obligation_id) <= 0 THEN
+        RAISE EXCEPTION 'rent adjustment would make obligation amount non-positive';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER rent_adjustments_apply_to_obligation
+AFTER INSERT ON rent_adjustments
+FOR EACH ROW
+EXECUTE FUNCTION apply_rent_adjustment_to_obligation();
 
 CREATE TABLE payment_reversals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
