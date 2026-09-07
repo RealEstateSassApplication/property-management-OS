@@ -32,14 +32,14 @@ export type Unit = {
 };
 
 const apiBaseUrl = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
-const organizationId = process.env.PROPERTY_OS_ORGANIZATION_ID ?? process.env.NEXT_PUBLIC_DEV_ORGANIZATION_ID;
+const organizationId = process.env.PROPERTY_OS_ORGANIZATION_ID;
 
 export class PropertyOSConfigurationError extends Error {}
 
 function headers(extra?: HeadersInit): HeadersInit {
   if (!organizationId) {
     throw new PropertyOSConfigurationError(
-      "Set PROPERTY_OS_ORGANIZATION_ID (or NEXT_PUBLIC_DEV_ORGANIZATION_ID) for local development.",
+      "Set PROPERTY_OS_ORGANIZATION_ID for local development.",
     );
   }
 
