@@ -122,8 +122,8 @@ type OwnerPropertyBase struct {
 }
 
 type OwnerReceivableRow struct {
-	PropertyID        string
-	Currency          string
+	PropertyID       string
+	Currency         string
 	OutstandingMinor int64
 }
 
