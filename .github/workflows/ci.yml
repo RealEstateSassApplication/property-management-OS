@@ -69,6 +69,7 @@ jobs:
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-document-seed.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-notification-seed.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-agent-seed.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-portal-seed.sql
       - name: Verify identity mapping seed
         env: { PGPASSWORD: property_os }
         run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT user_id || ':' || subject FROM user_identities WHERE issuer = 'https://idp.example.invalid'")" = "22222222-2222-2222-2222-222222222222:property-os-dev-user"
@@ -99,6 +100,13 @@ jobs:
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT role FROM organization_memberships WHERE user_id='17171717-1717-1717-1717-171717171717'")" = "agent"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT to_regclass('public.agent_action_requests') IS NOT NULL")" = "t"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT status || ':' || amount_minor || ':' || currency FROM maintenance_quotes WHERE id='20202020-2020-2020-2020-202020202020'")" = "submitted:2750000:LKR"
+      - name: Verify portal role and resource links
+        env: { PGPASSWORD: property_os }
+        run: |
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT role FROM organization_memberships WHERE user_id='18181818-1818-1818-1818-181818181818'")" = "owner"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT owner_id FROM owner_user_links WHERE user_id='18181818-1818-1818-1818-181818181818'")" = "99999999-9999-9999-9999-999999999999"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT role FROM organization_memberships WHERE user_id='19191919-1919-1919-1919-191919191919'")" = "tenant"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT tenant_id FROM tenant_user_links WHERE user_id='19191919-1919-1919-1919-191919191919'")" = "66666666-6666-6666-6666-666666666666"
 
   web:
     name: Next.js web
