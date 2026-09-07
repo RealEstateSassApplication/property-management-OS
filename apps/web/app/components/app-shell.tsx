@@ -7,7 +7,7 @@ const navigation = [
   { href: "/tenants", label: "Tenants", enabled: true },
   { href: "/leases", label: "Leasing", enabled: true },
   { href: "/rent", label: "Rent", enabled: true },
-  { href: "/maintenance", label: "Maintenance", enabled: false },
+  { href: "/maintenance", label: "Maintenance", enabled: true },
 ];
 
 export function AppShell({ children, section = "Portfolio" }: { children: ReactNode; section?: string }) {
