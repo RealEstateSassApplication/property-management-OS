@@ -16,6 +16,12 @@ type fakeRepository struct {
 
 func (f *fakeRepository) List(context.Context, string) ([]ActionRequest, error) { return nil, nil }
 func (f *fakeRepository) Get(context.Context, string, string) (ActionRequest, error) {
+	if f.marked.ID != "" {
+		return f.marked, nil
+	}
+	if f.decision.ID != "" {
+		return f.decision, nil
+	}
 	return f.proposed, nil
 }
 func (f *fakeRepository) GetQuoteApprovalContext(context.Context, string, string) (QuoteApprovalContext, error) {
@@ -39,19 +45,31 @@ func (f *fakeRepository) RecordDecision(_ context.Context, _, _, reviewerID, dec
 }
 func (f *fakeRepository) MarkExecuted(context.Context, string, string, any) (ActionRequest, error) {
 	f.marked = f.decision
+	if f.marked.ID == "" {
+		f.marked = f.proposed
+	}
 	f.marked.Status = "executed"
 	return f.marked, nil
 }
 func (f *fakeRepository) MarkFailed(_ context.Context, _, _, failure string) (ActionRequest, error) {
 	f.marked = f.decision
+	if f.marked.ID == "" {
+		f.marked = f.proposed
+	}
 	f.marked.Status = "failed"
 	f.marked.LastError = failure
 	return f.marked, nil
 }
 
-type fakeExecutor struct{ err error }
+type fakeExecutor struct {
+	err        error
+	reviewerID *string
+}
 
-func (f fakeExecutor) ApproveMaintenanceQuote(context.Context, string, string, string) (any, error) {
+func (f fakeExecutor) ApproveMaintenanceQuote(_ context.Context, _, _, reviewerID string) (any, error) {
+	if f.reviewerID != nil {
+		*f.reviewerID = reviewerID
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -89,6 +107,36 @@ func TestHumanApprovalExecutesDomainAction(t *testing.T) {
 	}
 	if item.Status != "executed" {
 		t.Fatalf("expected executed, got %s", item.Status)
+	}
+}
+
+func TestApprovedActionCanResumeAfterCrash(t *testing.T) {
+	payload, _ := json.Marshal(QuoteApprovalContext{QuoteID: "quote-1"})
+	repo := &fakeRepository{proposed: ActionRequest{ID: "action-1", ActionType: MaintenanceQuoteApproval, Payload: payload, Status: "approved", ReviewedByUserID: "original-reviewer"}}
+	var executorReviewer string
+	service := NewService(repo, fakeExecutor{reviewerID: &executorReviewer})
+	item, err := service.Decide(context.Background(), "org", "action-1", "recovery-reviewer", DecisionInput{Decision: "approve", Reason: "Resume previously approved action."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Status != "executed" {
+		t.Fatalf("expected executed recovery, got %s", item.Status)
+	}
+	if executorReviewer != "original-reviewer" {
+		t.Fatalf("expected original human reviewer identity during recovery, got %q", executorReviewer)
+	}
+}
+
+func TestExecutedApprovalReplayIsIdempotent(t *testing.T) {
+	payload, _ := json.Marshal(QuoteApprovalContext{QuoteID: "quote-1"})
+	repo := &fakeRepository{proposed: ActionRequest{ID: "action-1", ActionType: MaintenanceQuoteApproval, Payload: payload, Status: "executed", ReviewedByUserID: "reviewer"}}
+	service := NewService(repo, fakeExecutor{err: errors.New("executor must not be called")})
+	item, err := service.Decide(context.Background(), "org", "action-1", "reviewer", DecisionInput{Decision: "approve", Reason: "Retry response after network loss."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Status != "executed" {
+		t.Fatalf("expected existing executed result, got %s", item.Status)
 	}
 }
 
