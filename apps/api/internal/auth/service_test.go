@@ -64,6 +64,22 @@ func TestAuthorizeAllowsMaintenanceOperationsButNotCostOrVendorApproval(t *testi
 	}
 }
 
+func TestAuthorizeAgentGetsReadAndConstrainedActionsOnly(t *testing.T) {
+	service := NewService(fakeMembershipRepository{membership: Membership{Role: "agent"}})
+	allowed := []Permission{ViewPortfolio, ViewPeople, ViewLeases, ViewRent, ViewMaintenance, CreateMaintenanceRequests, ViewNotifications, SendRentReminders, ViewAgentActions, ProposeAgentActions}
+	for _, permission := range allowed {
+		if _, err := service.Authorize(context.Background(), "org", "agent", permission); err != nil {
+			t.Fatalf("expected agent permission %s to be allowed: %v", permission, err)
+		}
+	}
+	forbidden := []Permission{ManageRent, ManageMaintenance, ApproveMaintenanceCosts, DecideAgentActions, ManageDocuments, ManageNotifications}
+	for _, permission := range forbidden {
+		if _, err := service.Authorize(context.Background(), "org", "agent", permission); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("expected agent permission %s to be forbidden, got %v", permission, err)
+		}
+	}
+}
+
 func TestAuthorizeRestrictsViewerWrites(t *testing.T) {
 	service := NewService(fakeMembershipRepository{membership: Membership{Role: "viewer"}})
 	if _, err := service.Authorize(context.Background(), "org", "user", ManageRent); !errors.Is(err, ErrForbidden) {
