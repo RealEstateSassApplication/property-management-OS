@@ -54,7 +54,9 @@ func (h accountingHandler) listReversals(w http.ResponseWriter, r *http.Request)
 
 func (h accountingHandler) reversePayment(w http.ResponseWriter, r *http.Request) {
 	input := accounting.ReversePaymentInput{PaymentID: r.PathValue("paymentID")}
-	var body struct{ Reason string `json:"reason"` }
+	var body struct {
+		Reason string `json:"reason"`
+	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
 		return
@@ -177,7 +179,9 @@ func (h accountingHandler) createExpense(w http.ResponseWriter, r *http.Request)
 
 func (h accountingHandler) reverseExpense(w http.ResponseWriter, r *http.Request) {
 	input := accounting.ReverseExpenseInput{ExpenseID: r.PathValue("expenseID")}
-	var body struct{ Reason string `json:"reason"` }
+	var body struct {
+		Reason string `json:"reason"`
+	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
 		return
