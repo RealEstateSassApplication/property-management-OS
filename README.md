@@ -1,49 +1,82 @@
 # Property Management OS
 
-Property Management OS is the operational layer for managing rental properties, units, owners, tenants, occupancies, leases, rent, maintenance, documents, vendors, and reporting.
+Property Management OS is a multi-tenant operational platform for rental property portfolios: properties and units, owners, tenants and occupancies, leases, rent, maintenance, documents, notifications, and agent-assisted operations.
 
 ## Architecture
 
-This repository is a monorepo built around a deliberately simple startup architecture:
+```text
+Browser / manager UI
+        |
+        v
+Next.js web
+        |
+        v
+Go API modular monolith ---------------------------+
+        |                                           |
+        +--> PostgreSQL                             |
+        +--> S3-compatible object storage           |
+        +--> notification_outbox                    |
+                                                    |
+Go notification worker <----------------------------+
+        |
+        +--> delivery provider (log dev / webhook production)
+
+AI agent / IDE
+        |
+        v
+Property OS MCP (stdio)
+        |
+        v
+Authenticated Property OS HTTP API
+```
+
+Core rules:
 
 - **Web:** Next.js + TypeScript
 - **Backend:** Go modular monolith
 - **Database:** PostgreSQL
 - **Authentication:** standards-compliant OIDC / Bearer JWT
 - **Authorization:** PostgreSQL organization memberships + RBAC
-- **API contract:** OpenAPI
+- **Documents:** S3-compatible storage with PostgreSQL metadata
+- **Async delivery:** PostgreSQL transactional outbox + Go worker
+- **Agent integration:** official Go MCP SDK over the authenticated HTTP API
+- **Contracts:** OpenAPI
 - **Local development:** Docker Compose
 
-The system is multi-tenant from day one. Business data is organization-scoped and all authorization is enforced server-side.
+Business data is organization-scoped and authorization is enforced server-side. The MCP process has no database connection and does not provide an alternate authorization path.
 
 ## Repository layout
 
 ```text
 apps/
-  web/                 Next.js property manager, owner, and tenant experiences
-  api/                 Go API and future background-worker entrypoints
+  web/                 Next.js property-manager experience
+  api/
+    cmd/api/           HTTP API
+    cmd/worker/        notification delivery worker
+    cmd/mcp/           stdio MCP server for agentic operations
 contracts/
-  openapi.yaml         Source API contract
-migrations/            PostgreSQL migrations
-scripts/               Local development helpers and seed data
-docs/                  Architecture and domain documentation
+  openapi.yaml
+  documents.openapi.yaml
+  notifications.openapi.yaml
+migrations/
+scripts/
+docs/
 ```
 
 ## Implemented
 
-### Foundation and portfolio
+### Foundation, identity, and authorization
 
-- Next.js application shell
-- Go HTTP API with graceful shutdown and structured logging
+- Go HTTP API with structured logging and graceful shutdown
 - PostgreSQL connection pooling with pgx
-- organization-scoped properties and units
-- property and unit create/list/get/update APIs
-- portfolio register, property details, unit management, and occupancy metrics
-- CI for Go, PostgreSQL, and Next.js
+- organization-scoped multi-tenancy
+- production OIDC discovery/JWKS/JWT verification
+- external `issuer + subject` mapped to stable internal users
+- PostgreSQL organization membership and role permissions
+- development/test `X-User-ID` fallback only when a Bearer token is not supplied
+- production refuses to start without complete OIDC configuration
 
-### Production identity and authorization
-
-Production authentication is provider-neutral OIDC. The API performs issuer discovery, verifies JWT signatures against the provider JWKS, validates issuer/audience/token lifetime, and then maps the verified external identity to a stable internal Property OS user.
+Production authorization chain:
 
 ```text
 Bearer JWT
@@ -61,76 +94,117 @@ organization_memberships
 route permission
 ```
 
-Important rules:
+`X-Organization-ID` selects requested tenant scope; it never grants access by itself.
 
-- an OIDC `sub` is never used as a Property OS user UUID
-- `issuer + subject` uniquely identify a linked external identity
-- email is retained as last-seen metadata but is never used to grant access
-- a valid token whose identity is not linked returns `403 Forbidden`
-- an invalid, expired, or unverifiable Bearer token returns `401 Unauthorized`
-- `X-Organization-ID` selects the organization the caller wants to operate in; it does **not** grant membership
-- PostgreSQL `organization_memberships` remains the authorization authority
-- production startup fails if `OIDC_ISSUER_URL` and `OIDC_AUDIENCE` are not configured together
-- development/test may still use `X-User-ID` when no Bearer token is supplied
-- if a Bearer token is supplied in development, the real OIDC path takes precedence
-
-Current roles and permissions include:
+Current role intent:
 
 - `admin`, `manager`: manage all implemented organization modules
-- `accountant`: read operational data, manage rent, and approve maintenance costs
-- `viewer`: read-only operational access
-- `maintenance`: portfolio visibility and maintenance execution, but not vendor master-data management or cost approval
+- `accountant`: read operational/financial data, manage rent, approve maintenance costs, view notification delivery, and queue server-authored rent reminders
+- `viewer`: read-only operational access, excluding generalized sensitive documents/notification delivery
+- `maintenance`: portfolio visibility and maintenance execution, but no vendor master-data management or cost approval
 - `owner`: no generalized organization access until resource-scoped owner portal authorization is implemented
+
+### Portfolio
+
+- properties and units
+- create/list/get/update APIs
+- occupancy state
+- portfolio register, property details, unit management and metrics
 
 ### Tenants, tenancies, and leases
 
-- tenant register with prospect/active/former/blocked lifecycle
-- tenancy model separate from authentication and lease contracts
+- tenant lifecycle
+- tenancy separated from login identity and lease contracts
 - primary tenant plus additional occupants
 - one active tenancy per unit enforced in PostgreSQL
 - active tenancy synchronizes unit occupancy
-- lease create/list/get/update API
-- controlled lease lifecycle transitions
-- one active lease per tenancy enforced in PostgreSQL
-- rent/deposit amounts stored as integer minor units, never floating point
-- manager-facing Tenants and Leasing screens
+- controlled lease lifecycle
+- one active lease per tenancy
+- rent/deposit money stored as integer minor units
+- manager-facing Tenants and Leasing workspaces
 
 ### Owners and ownership
 
-- owners are business-domain records, separate from application users
-- individual and company owner types
-- ownership interests stored in basis points (`10,000 bps = 100%`)
-- effective ownership dates retained for historical reporting
-- current ownership assignments cannot exceed 100%
-- property-row locking serializes concurrent ownership changes
+- owner domain records separate from application users
+- individual/company owners
+- ownership interests in basis points (`10,000 bps = 100%`)
+- effective ownership dates
+- property-row locking prevents concurrent current interests exceeding 100%
 - manager-facing Owners workspace
 
 ### Rent ledger
 
-- monthly obligations derive amount, currency, and due day from the active lease in Go
+- monthly obligations derive amount, currency and due day from the lease in Go
 - one obligation per lease/month
-- immutable posted payment records
-- allocations are the only mechanism that reduces obligation balances
-- balances and open/overdue/paid state are derived from ledger rows
-- partial payments supported
-- payment and obligation rows locked during allocation
-- currency, tenancy, payment-state, and balance checks are server-authoritative
-- manager-facing Rent workspace with receivables and cash registers
+- immutable posted payments
+- allocations are the only mechanism reducing obligation balances
+- open/overdue/paid state and balances derived from ledger rows
+- partial payments
+- payment/obligation row locking during allocation
+- server-authoritative currency, tenancy, payment-state and balance validation
+- manager-facing Rent receivables and cash registers
 
 ### Maintenance operations
 
 - organization-scoped vendor directory
-- property/unit/tenant-linked maintenance requests
-- tenant-linked requests require an active occupancy on the selected unit
-- work orders support internal or vendor assignment and scheduling
-- quote money is integer minor-unit data
-- cost approval is separate from maintenance execution permission
+- property/unit/tenant-linked requests
+- active-occupancy validation for tenant-linked requests
+- work orders, assignment and scheduling
+- quote approval separated from execution permission
 - one approved quote per work order
-- approving a quote atomically assigns its vendor and rejects competing submitted quotes
-- work orders cannot complete without completion evidence
-- request resolution follows completed work orders
-- quote decisions and evidence capture retain actor-aware audit events
-- manager-facing Maintenance workspace for intake, dispatch, quotes, approvals, proof, and lifecycle controls
+- approved quote atomically assigns its vendor and rejects competing submitted quotes
+- completion evidence required before work-order completion
+- actor-aware audit events
+- manager-facing Maintenance workspace
+
+### Documents and object storage
+
+- organization/resource-scoped document metadata in PostgreSQL
+- S3-compatible object storage for file bytes
+- backend-generated storage keys
+- presigned browser-direct uploads
+- 25 MB server-authoritative limit and MIME allowlist
+- HEAD verification before `pending → available`
+- mismatch quarantine
+- short-lived presigned downloads
+- storage deletion plus metadata tombstone
+- attachments for properties, units, tenants, leases, owners, rent payments, maintenance requests, work orders and vendors
+- generalized document access remains admin/manager-only until resource-scoped portals are implemented
+- manager-facing Documents workspace
+
+### Notification outbox and worker
+
+- durable `notification_outbox` records
+- email/SMS/WhatsApp/webhook channel model
+- `pending → processing → delivered`, with `retry` and `dead` failure states
+- idempotency keys
+- concurrent worker claiming with `FOR UPDATE SKIP LOCKED`
+- stale processing-lock recovery
+- capped exponential retries
+- development log provider
+- production webhook delivery adapter boundary
+- manager-facing Notifications delivery register
+- server-authored rent reminders based on the real ledger state
+
+Rent-reminder callers supply only obligation ID, channel and recipient. The API derives tenant, property, unit, current outstanding balance and due date and rejects paid/void obligations. Same-day reminders are idempotent.
+
+### Agentic MCP server
+
+Property OS includes a stdio MCP server at `apps/api/cmd/mcp`. It uses the official `modelcontextprotocol/go-sdk` and calls the authenticated Property OS API rather than importing repositories.
+
+Read tools:
+
+- `portfolio_snapshot`
+- `list_overdue_rent`
+- `list_expiring_leases`
+- `list_open_maintenance`
+
+Controlled mutation tools:
+
+- `queue_rent_reminder`
+- `create_maintenance_request`
+
+The first MCP tranche deliberately excludes generic SQL, arbitrary financial writes, payment posting, quote approval and blanket document access. See `docs/mcp.md`.
 
 ## Local development
 
@@ -141,28 +215,35 @@ make migrate-all
 make seed
 ```
 
-For an existing database, apply only migrations you have not run:
+For an existing database, apply only migrations you have not run, including:
 
 ```bash
-make migrate-people
-make migrate-finance
-make migrate-maintenance
-make migrate-identity
-make seed
+make migrate-documents
+make migrate-notifications
 ```
 
-Start the API:
+Run the API, web app and async worker in separate terminals:
 
 ```bash
 set -a && source .env && set +a
 make api
 ```
 
-Start the web application separately:
-
 ```bash
 set -a && source .env && set +a
 make web
+```
+
+```bash
+set -a && source .env && set +a
+make worker
+```
+
+Run the MCP server for a local MCP client:
+
+```bash
+set -a && source .env && set +a
+make mcp
 ```
 
 Development identity:
@@ -181,35 +262,14 @@ Subject: property-os-dev-user
 User:    22222222-2222-2222-2222-222222222222
 ```
 
-For production set:
-
-```bash
-APP_ENV=production
-OIDC_ISSUER_URL=https://your-idp.example.com/
-OIDC_AUDIENCE=your-property-os-api-audience
-```
-
-The configured provider may be Auth0, Keycloak, Okta, Microsoft Entra ID, or another OIDC-compliant issuer.
-
-## API authentication
-
-Production business requests use:
+Production API authentication uses:
 
 ```http
 Authorization: Bearer <verified OIDC JWT>
 X-Organization-ID: <organization UUID>
 ```
 
-The organization header is a requested tenant scope. After authentication, the backend verifies that the resolved internal user is an active member with the permission required by the route.
-
-Development/test can instead use:
-
-```http
-X-Organization-ID: <organization UUID>
-X-User-ID: <internal user UUID>
-```
-
-Those development headers are not accepted as production authentication.
+For a production MCP process, configure a short-lived `PROPERTY_OS_ACCESS_TOKEN` for the intended user/service identity rather than `PROPERTY_OS_USER_ID`. Never commit access tokens into the repository or MCP configuration files.
 
 ## API groups
 
@@ -251,31 +311,43 @@ PATCH          /api/v1/maintenance/work-orders/{workOrderID}/status
 GET/POST       /api/v1/maintenance/quotes
 POST           /api/v1/maintenance/quotes/{quoteID}/decision
 GET/POST       /api/v1/maintenance/evidence
+
+Documents
+GET            /api/v1/documents
+POST           /api/v1/documents/uploads
+POST           /api/v1/documents/{documentID}/complete
+GET            /api/v1/documents/{documentID}/download
+DELETE         /api/v1/documents/{documentID}
+
+Notifications
+GET/POST       /api/v1/notifications
+POST           /api/v1/notifications/rent-reminders
 ```
 
-See `contracts/openapi.yaml` for the request/response contract.
+See `contracts/openapi.yaml`, `contracts/documents.openapi.yaml`, and `contracts/notifications.openapi.yaml`.
 
 ## Development principles
 
 - Keep the backend a **modular monolith** until scaling requirements justify otherwise.
-- PostgreSQL is the source of truth.
+- PostgreSQL is the source of truth for domain and outbox state.
 - Separate authentication from authorization.
 - Keep external identities separate from stable internal user IDs.
 - Never authorize by email alone.
 - Never use floating-point values as persisted money.
-- Never trust browser-calculated financial state.
+- Never trust browser- or agent-calculated financial state.
 - Derive balances from auditable ledger rows.
 - Keep financial approval separate from operational execution.
 - Require explicit evidence before declaring operational work complete.
 - Keep tenant/person records separate from portal authentication identities.
 - Keep tenancy/occupancy separate from lease contracts.
-- Add asynchronous infrastructure only when workflows require it.
+- Send external notifications asynchronously from durable outbox state.
+- Agents call authenticated domain APIs; they do not receive raw database access.
 
 ## Next domains
 
-1. Documents, object storage, and notifications
-2. Resource-scoped owner and tenant portals
-3. Rent adjustments, reversals, deposits, owner statements, and reconciliation
+1. Resource-scoped owner and tenant portals
+2. Scheduled operational automation and approval policies for agent actions
+3. Rent adjustments, reversals, deposits, owner statements and reconciliation
 4. Maintenance invoice/expense posting and owner approval policies
-5. Reporting, audit surfaces, and workflow automation
+5. Reporting, audit surfaces and operational analytics
 6. Avara and Blu integration adapters
