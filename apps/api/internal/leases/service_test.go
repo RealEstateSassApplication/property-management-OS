@@ -13,7 +13,7 @@ type fakeRepository struct {
 	updateInput UpdateInput
 }
 
-func (f *fakeRepository) List(context.Context, string) ([]Lease, error) { return nil, nil }
+func (f *fakeRepository) List(context.Context, string) ([]Lease, error)      { return nil, nil }
 func (f *fakeRepository) Get(context.Context, string, string) (Lease, error) { return f.lease, nil }
 func (f *fakeRepository) Create(_ context.Context, organizationID string, input CreateInput) (Lease, error) {
 	f.createCalls++
