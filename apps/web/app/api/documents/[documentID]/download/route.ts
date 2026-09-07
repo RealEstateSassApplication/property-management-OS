@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDocumentDownload } from "../../../../../lib/documents";
+import { getDocumentDownload } from "../../../../lib/documents";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ documentID: string }> }) {
   try {
