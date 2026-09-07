@@ -8,6 +8,7 @@ const navigation = [
   { href: "/leases", label: "Leasing", enabled: true },
   { href: "/rent", label: "Rent", enabled: true },
   { href: "/accounting", label: "Accounting", enabled: true },
+  { href: "/inspections", label: "Inspections", enabled: true },
   { href: "/maintenance", label: "Maintenance", enabled: true },
   { href: "/documents", label: "Documents", enabled: true },
   { href: "/notifications", label: "Notifications", enabled: true },

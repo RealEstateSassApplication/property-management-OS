@@ -71,6 +71,7 @@ jobs:
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-agent-seed.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-portal-seed.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-accounting-seed.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-inspection-seed.sql
       - name: Verify identity mapping seed
         env: { PGPASSWORD: property_os }
         run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT user_id || ':' || subject FROM user_identities WHERE issuer = 'https://idp.example.invalid'")" = "22222222-2222-2222-2222-222222222222:property-os-dev-user"
@@ -122,6 +123,11 @@ jobs:
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT COALESCE(SUM(CASE WHEN transaction_type IN ('received','adjustment_increase') THEN amount_minor ELSE -amount_minor END),0) FROM security_deposit_transactions WHERE deposit_account_id='27272727-2727-2727-2727-272727272727'")" = "15000000"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM property_expenses e LEFT JOIN property_expense_reversals r ON r.expense_id=e.id AND r.organization_id=e.organization_id WHERE e.organization_id='11111111-1111-1111-1111-111111111111' AND r.id IS NULL")" = "1"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT COALESCE(SUM(pa.amount_minor),0)-COALESCE((SELECT SUM(e.amount_minor) FROM property_expenses e LEFT JOIN property_expense_reversals er ON er.expense_id=e.id AND er.organization_id=e.organization_id WHERE e.organization_id='11111111-1111-1111-1111-111111111111' AND er.id IS NULL),0) FROM payment_allocations pa JOIN payments p ON p.id=pa.payment_id AND p.organization_id=pa.organization_id WHERE pa.organization_id='11111111-1111-1111-1111-111111111111' AND p.status='posted'")" = "8150000"
+      - name: Verify inspections
+        env: { PGPASSWORD: property_os }
+        run: |
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT inspection_type || ':' || status FROM inspections WHERE id='30303030-3030-3030-3030-303030303030'")" = "periodic:acknowledged"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM inspection_items WHERE inspection_id='30303030-3030-3030-3030-303030303030'")" = "2"
 
   web:
     name: Next.js web

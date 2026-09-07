@@ -1,0 +1,64 @@
+openapi: 3.1.0
+info:
+  title: Property Management OS - Inspections
+  version: 0.13.0
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/inspections:
+    get:
+      summary: List organization inspections
+      responses:
+        '200': { description: Inspection list }
+    post:
+      summary: Create tenancy-scoped inspection
+      responses:
+        '201': { description: Inspection created }
+  /api/v1/inspections/{inspectionID}:
+    get:
+      summary: Get inspection
+      parameters:
+        - $ref: '#/components/parameters/inspectionID'
+      responses:
+        '200': { description: Inspection }
+  /api/v1/inspections/{inspectionID}/items:
+    get:
+      summary: List condition items
+      parameters:
+        - $ref: '#/components/parameters/inspectionID'
+      responses:
+        '200': { description: Condition item list }
+    post:
+      summary: Add condition item
+      parameters:
+        - $ref: '#/components/parameters/inspectionID'
+      responses:
+        '201': { description: Condition item created }
+  /api/v1/inspections/{inspectionID}/complete:
+    post:
+      summary: Complete inspection after at least one condition item exists
+      parameters:
+        - $ref: '#/components/parameters/inspectionID'
+      responses:
+        '200': { description: Inspection completed }
+  /api/v1/inspections/{inspectionID}/acknowledge:
+    post:
+      summary: Acknowledge a completed inspection
+      parameters:
+        - $ref: '#/components/parameters/inspectionID'
+      responses:
+        '200': { description: Inspection acknowledged }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    inspectionID:
+      name: inspectionID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }

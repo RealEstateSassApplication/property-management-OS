@@ -18,6 +18,7 @@ import (
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/database"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/documents"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/httpapi"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/inspections"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
@@ -94,6 +95,7 @@ func main() {
 	ownerService := owners.NewService(owners.NewPostgresRepository(pool))
 	rentService := rent.NewService(rent.NewPostgresRepository(pool))
 	accountingService := accounting.NewService(accounting.NewPostgresRepository(pool))
+	inspectionService := inspections.NewService(inspections.NewPostgresRepository(pool))
 	maintenanceService := maintenance.NewService(maintenance.NewPostgresRepository(pool))
 	documentService := documents.NewService(documents.NewPostgresRepository(pool), documentStorage)
 	notificationService := notifications.NewService(notifications.NewPostgresRepository(pool))
@@ -111,6 +113,7 @@ func main() {
 		Portals: portalService, OrganizationAdmin: organizationAdminService, Reporting: reportingService,
 		AllowDevelopmentIdentity: allowDevelopmentIdentity,
 	})
+	handler = httpapi.WithInspectionRoutes(handler, authenticationService, authorizationService, allowDevelopmentIdentity, inspectionService)
 	server := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		logger.Info("api server starting", "address", cfg.Address, "environment", cfg.Environment, "oidc", authenticationService != nil, "documentStorage", documentStorage != nil)

@@ -28,13 +28,13 @@ func roleAllows(role string, permission Permission) bool {
 	case "manager":
 		return permission != ManageMembers && permission != ManageAccounting
 	case "accountant":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewAccounting || permission == ManageAccounting || permission == ViewMaintenance || permission == ApproveMaintenanceCosts || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == DecideAgentActions || permission == ViewReporting || permission == ViewAudit
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewAccounting || permission == ManageAccounting || permission == ViewInspections || permission == ViewMaintenance || permission == ApproveMaintenanceCosts || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == DecideAgentActions || permission == ViewReporting || permission == ViewAudit
 	case "viewer":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ViewMaintenance || permission == ViewReporting
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ViewInspections || permission == ViewMaintenance || permission == ViewReporting
 	case "maintenance":
-		return permission == ViewPortfolio || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ManageMaintenance || permission == ProposeAgentActions
+		return permission == ViewPortfolio || permission == ViewInspections || permission == ManageInspections || permission == AcknowledgeInspections || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ManageMaintenance || permission == ProposeAgentActions
 	case "agent":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewRent || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == ProposeAgentActions
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewRent || permission == ViewInspections || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == ProposeAgentActions
 	case "owner":
 		return permission == ViewOwnerPortal
 	case "tenant":
