@@ -23,12 +23,16 @@ Organization
   |                                                    Payment allocations
   |                                                          |
   +------------------------------------------------------ Payments
-
-Property / Unit / Tenancy
+  |
+  +-- Vendors
   |
   +-- Maintenance requests
+        |
         +-- Work orders
-              +-- Vendors
+              |
+              +-- Maintenance quotes
+              |
+              +-- Completion evidence
 ```
 
 ## Organization and authorization
@@ -38,9 +42,9 @@ The SaaS tenant. A property-management company, landlord business, or other port
 Users gain access through `organization_memberships`. Membership role is verified server-side on every business request. Current generalized permissions are:
 
 - `admin`, `manager`: read/write across implemented organization modules
-- `accountant`: read portfolio/people/leasing/owners and manage rent operations
-- `viewer`: read-only portfolio/people/leasing/owners/rent
-- `maintenance`: portfolio read access
+- `accountant`: read portfolio/people/leasing/owners/maintenance, manage rent, and approve maintenance costs
+- `viewer`: read-only portfolio/people/leasing/owners/rent/maintenance
+- `maintenance`: portfolio read plus maintenance execution; cannot manage vendor master data or approve costs
 - `owner`: no generalized organization access until owned-property resource scoping is implemented
 
 Development identity headers only inject local identity; they do not bypass membership or role checks.
@@ -110,61 +114,92 @@ A rent obligation represents one lease-backed receivable for one month. The clie
 
 There can be only one obligation per organization/lease/month. The due day is capped to the last valid day of short months.
 
-Obligation financial state is not stored as `paid=true`. It is derived:
+Obligation financial state is derived from obligation and allocation rows rather than stored as a mutable paid flag.
+
+## Payment and allocation
+
+A payment is an immutable posted cash receipt tied to a tenant. A payment allocation applies part of that receipt to a rent obligation. Row locking, currency validation, tenancy validation, and remaining-balance checks protect the ledger from over-allocation and concurrent double spend.
+
+## Vendor
+
+A vendor is an organization-scoped service provider used by maintenance operations. Vendors have a trade and lifecycle state. An inactive vendor cannot be assigned to new work or submit new quotes.
+
+Vendor master-data writes are intentionally separated from ordinary maintenance execution permissions.
+
+## Maintenance request
+
+A maintenance request is the intake record for an operational issue. It belongs to a property and may be linked to a unit and tenant.
+
+If a tenant is attached, the backend verifies that the tenant is an active occupant of the selected unit. This prevents arbitrary tenant/unit associations and keeps tenant-facing history trustworthy.
+
+Lifecycle:
 
 ```text
-allocated = SUM(payment_allocations.amount_minor)
-balance   = obligation.amount_minor - allocated
-
-void      -> obligation record explicitly voided
-paid      -> allocated >= amount
-overdue   -> balance > 0 and current date > due date
-open      -> balance > 0 and not overdue
+open -> triaged -> in_progress -> resolved
+  \        \             \
+   +--------+-------------+-> cancelled
 ```
 
-## Payment
+A resolved request must have at least one completed work order and no incomplete work orders.
 
-A payment is an immutable posted cash receipt tied to a tenant. It records amount, currency, received date, method, and optional external reference.
+## Work order
 
-The unallocated payment balance is derived from allocations:
+A work order is the executable job created from a maintenance request. It can be internal or assigned to a vendor and may be scheduled.
+
+Lifecycle:
 
 ```text
-unallocated = payment.amount_minor - SUM(payment_allocations.amount_minor)
+planned -> assigned -> in_progress -> completed
+   \          \             \
+    +----------+-------------+-> cancelled
 ```
 
-Future reversals should be explicit accounting events, not silent edits to a posted payment.
+Starting a work order pushes its request into `in_progress`. Completing the final active work order resolves the request automatically when at least one work order completed successfully.
 
-## Payment allocation
+A work order **cannot be completed without completion evidence**. This is enforced transactionally in the backend, not as a UI convention.
 
-An allocation applies some or all of a payment to a rent obligation. Multiple allocations can be created, allowing partial payments and incremental allocation.
+## Maintenance quote and approval
 
-During allocation the backend locks both the payment and obligation rows and verifies:
+A quote captures vendor scope and money in integer minor units.
 
-- payment is posted
-- obligation is not void
-- currencies match
-- payment tenant belongs to the obligation tenancy
-- allocation does not exceed remaining payment balance
-- allocation does not exceed remaining obligation balance
+Lifecycle:
 
-This protects the ledger from concurrent double allocation and overpayment races.
+`submitted -> approved | rejected | withdrawn`
 
-Example:
+Important controls:
+
+- only one approved quote is allowed per work order
+- quote approval requires the dedicated `maintenance:approve_costs` permission
+- a maintenance operator cannot approve the quote they are executing under the generalized maintenance role
+- approving a quote atomically assigns the selected vendor to the work order
+- competing submitted quotes are rejected when one quote is approved
+- decision actor and time are retained, and the action is also written to `audit_events`
+
+This keeps cost approval separate from job execution while avoiding a separate workflow service at the current scale.
+
+## Completion evidence
+
+Evidence is immutable proof attached to a work order. Today it can be a note or a storage reference; the model already supports future photos, invoices, receipts, and other stored artifacts.
+
+Each evidence record retains the submitting user and timestamp. Evidence creation also writes an audit event.
+
+Example maintenance flow:
 
 ```text
-Rent obligation: LKR 150,000
-Payment:         LKR 100,000
-Allocation:      LKR 100,000
-Outstanding:     LKR  50,000
+Tenant-linked request
+  -> triage
+  -> work order
+  -> vendor quote
+  -> independent quote approval
+  -> work starts
+  -> completion evidence
+  -> work order completes
+  -> request resolves
 ```
-
-## Maintenance
-
-Maintenance begins as a request and may produce one or more work orders. The system should retain issue history, assignment, quotes/approvals, scheduling, status transitions, costs, attachments, and proof of completion.
 
 ## Documents
 
-Documents attach to explicit resources and have ownership/access metadata. Examples include leases, IDs, inspection reports, invoices, receipts, and maintenance evidence.
+Documents will attach to explicit resources with ownership/access metadata. Examples include leases, IDs, inspection reports, invoices, receipts, and richer maintenance evidence.
 
 ## Audit
 
@@ -182,12 +217,14 @@ Completed:
 6. Owners and ownership interests
 7. Rent obligations
 8. Payments and allocations
+9. Maintenance requests, vendors, work orders, quotes, approvals, and completion evidence
 
 Next:
 
-9. Maintenance requests, vendors, work orders, quotes, approvals
 10. Production OIDC/JWT adapter
-11. Documents and notifications
+11. Documents, object storage, and notifications
 12. Owner/tenant portal resource scoping
 13. Financial adjustments, reversals, deposits, owner statements, reconciliation
-14. Reporting and automation/integration workflows
+14. Maintenance invoices/expenses and owner-specific approval policies
+15. Reporting and automation/integration workflows
+16. Avara/Blu integration adapters
