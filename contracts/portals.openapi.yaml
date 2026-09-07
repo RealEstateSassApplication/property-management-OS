@@ -1,0 +1,133 @@
+openapi: 3.1.0
+info:
+  title: Property OS Portals API
+  version: 0.10.0
+  description: Resource-scoped owner and tenant portal endpoints. Authentication identifies the user; organization membership plus explicit owner/tenant links constrain visible resources.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/portal/owner:
+    get:
+      summary: Get the authenticated owner's scoped portfolio summary
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+      responses:
+        '200':
+          description: Linked owner profiles and properties
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OwnerSummary'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotLinked' }
+  /api/v1/portal/tenant:
+    get:
+      summary: Get the authenticated tenant's scoped tenancy summary
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+      responses:
+        '200':
+          description: Linked tenant profiles, occupancies, rent and maintenance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TenantSummary'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotLinked' }
+  /api/v1/portal/tenant/maintenance-requests:
+    post:
+      summary: Create maintenance for an active tenancy linked to the authenticated tenant
+      parameters:
+        - $ref: '#/components/parameters/OrganizationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantMaintenanceInput'
+      responses:
+        '201':
+          description: Maintenance request created through the normal maintenance domain service
+        '400':
+          description: Invalid request
+        '403':
+          description: Tenancy is not linked to the authenticated portal user
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OrganizationID:
+      name: X-Organization-ID
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+      description: Requested organization scope. This header never grants access by itself.
+  responses:
+    Forbidden:
+      description: The authenticated organization role is not allowed to use this portal surface
+    NotLinked:
+      description: No business-domain owner/tenant record is linked to this user
+  schemas:
+    OwnerSummary:
+      type: object
+      required: [owners, properties]
+      properties:
+        owners:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              legalName: { type: string }
+              ownerType: { type: string, enum: [individual, company] }
+              email: { type: string }
+              phone: { type: string }
+        properties:
+          type: array
+          items:
+            type: object
+            properties:
+              ownerId: { type: string, format: uuid }
+              propertyId: { type: string, format: uuid }
+              referenceCode: { type: string }
+              name: { type: string }
+              city: { type: string }
+              ownershipBps: { type: integer, minimum: 1, maximum: 10000 }
+              unitCount: { type: integer }
+              occupiedUnits: { type: integer }
+              openMaintenance: { type: integer }
+              outstandingByCurrencyMinor:
+                type: object
+                additionalProperties: { type: integer, format: int64 }
+    TenantSummary:
+      type: object
+      required: [tenants, occupancies, rent, maintenance]
+      properties:
+        tenants: { type: array, items: { type: object, additionalProperties: true } }
+        occupancies: { type: array, items: { type: object, additionalProperties: true } }
+        rent: { type: array, items: { type: object, additionalProperties: true } }
+        maintenance: { type: array, items: { type: object, additionalProperties: true } }
+    CreateTenantMaintenanceInput:
+      type: object
+      required: [tenancyId, title, description, category, priority]
+      properties:
+        tenancyId: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        category:
+          type: string
+          enum: [plumbing, electrical, hvac, appliance, structural, cleaning, security, other]
+        priority:
+          type: string
+          enum: [low, normal, high, emergency]

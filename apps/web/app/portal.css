@@ -1,0 +1,30 @@
+.portalFrame { min-height: 100vh; background: #f5f2ec; color: #171a17; }
+.portalTopbar { min-height: 82px; padding: 18px clamp(22px, 5vw, 72px); display: flex; align-items: center; justify-content: space-between; gap: 30px; background: #1e2d26; color: #f3f2eb; border-bottom: 1px solid rgba(255,255,255,.08); }
+.portalTopbar .brandSubline { color: #aab5ae; }
+.portalNav { display: flex; align-items: center; gap: 10px; }
+.portalNavItem { padding: 9px 12px; border-radius: 999px; color: #d5ddd8; font-size: 13px; }
+.portalNavItem:hover { background: rgba(255,255,255,.08); color: white; }
+.portalWorkspace { width: min(1240px, 100%); margin: 0 auto; padding: 54px clamp(20px, 5vw, 70px) 80px; }
+.portalHero { max-width: 900px; padding: 20px 0 34px; }
+.portalHero .pageTitle { max-width: 880px; }
+.portalMetrics { margin-top: 8px; }
+.portalPanel { margin-top: 24px; }
+.portalGrid { margin-top: 24px; }
+.portalCard { display: grid; gap: 9px; padding: 24px; }
+.portalCard > strong { font-family: Georgia, "Times New Roman", serif; font-size: 25px; font-weight: 400; }
+.portalCard > span { color: var(--muted); font-size: 13px; }
+.portalFacts { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1px; margin: 16px 0 0; background: var(--line); border: 1px solid var(--line); }
+.portalFacts div { padding: 15px 16px; background: var(--surface); }
+.portalFacts dt { margin-bottom: 6px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.portalFacts dd { margin: 0; font-size: 13px; font-weight: 700; text-transform: capitalize; }
+.portalSummaryLine { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
+.portalSummaryLine span { padding: 12px 14px; border: 1px solid var(--line); background: var(--surface); font-size: 12px; color: var(--muted); }
+.portalSummaryLine strong { color: var(--foreground); }
+.status-overdue { background: #f0ded9; color: #824b40; }
+.status-paid, .status-resolved, .status-completed, .status-executed { background: #e1ebe4; color: #2c5a3e; }
+.status-open, .status-triaged, .status-in_progress { background: #eee8d8; color: #765d27; }
+@media (max-width: 700px) {
+  .portalTopbar { align-items: flex-start; flex-direction: column; }
+  .portalWorkspace { padding-top: 34px; }
+  .portalFacts { grid-template-columns: 1fr; }
+}
