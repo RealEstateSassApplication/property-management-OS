@@ -16,7 +16,9 @@ type fakeRepository struct {
 	allocationCalls   int
 }
 
-func (f *fakeRepository) ListObligations(context.Context, string) ([]Obligation, error) { return nil, nil }
+func (f *fakeRepository) ListObligations(context.Context, string) ([]Obligation, error) {
+	return nil, nil
+}
 func (f *fakeRepository) ListPayments(context.Context, string) ([]Payment, error) { return nil, nil }
 func (f *fakeRepository) CreateObligation(_ context.Context, organizationID, leaseID string, periodStart time.Time) (Obligation, error) {
 	f.obligationCalls++
