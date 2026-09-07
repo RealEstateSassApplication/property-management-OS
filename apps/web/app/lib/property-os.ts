@@ -146,6 +146,85 @@ export type RentAllocation = {
   createdAt: string;
 };
 
+export type MaintenanceVendor = {
+  id: string;
+  organizationId: string;
+  name: string;
+  trade: "plumbing" | "electrical" | "hvac" | "appliance" | "structural" | "cleaning" | "security" | "general" | "other";
+  email?: string;
+  phone?: string;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MaintenanceRequest = {
+  id: string;
+  organizationId: string;
+  propertyId: string;
+  propertyName: string;
+  unitId?: string;
+  unitLabel?: string;
+  tenantId?: string;
+  tenantName?: string;
+  title: string;
+  description: string;
+  category: "plumbing" | "electrical" | "hvac" | "appliance" | "structural" | "cleaning" | "security" | "other";
+  priority: "low" | "normal" | "high" | "emergency";
+  status: "open" | "triaged" | "in_progress" | "resolved" | "cancelled";
+  resolvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MaintenanceWorkOrder = {
+  id: string;
+  organizationId: string;
+  maintenanceRequestId: string;
+  requestTitle: string;
+  propertyName: string;
+  unitLabel?: string;
+  vendorId?: string;
+  vendorName?: string;
+  assignedUserId?: string;
+  summary: string;
+  status: "planned" | "assigned" | "in_progress" | "completed" | "cancelled";
+  scheduledFor?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MaintenanceQuote = {
+  id: string;
+  organizationId: string;
+  workOrderId: string;
+  workOrderSummary: string;
+  vendorId: string;
+  vendorName: string;
+  amountMinor: number;
+  currency: string;
+  scopeSummary: string;
+  status: "submitted" | "approved" | "rejected" | "withdrawn";
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewedByUserId?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MaintenanceEvidence = {
+  id: string;
+  organizationId: string;
+  workOrderId: string;
+  evidenceType: "note" | "photo" | "invoice" | "receipt" | "other";
+  note?: string;
+  storageKey?: string;
+  submittedByUserId?: string;
+  createdAt: string;
+};
+
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:8080";
 const organizationId = process.env.PROPERTY_OS_ORGANIZATION_ID;
 const userId = process.env.PROPERTY_OS_USER_ID;
@@ -191,9 +270,7 @@ export async function getProperty(id: string): Promise<Property> {
   return (await request<{ data: Property }>(`/api/v1/properties/${id}`)).data;
 }
 
-export async function createProperty(input: {
-  referenceCode?: string; name: string; propertyType: string; addressLine1: string; city: string; region?: string; countryCode: string;
-}): Promise<Property> {
+export async function createProperty(input: { referenceCode?: string; name: string; propertyType: string; addressLine1: string; city: string; region?: string; countryCode: string }): Promise<Property> {
   return (await request<{ data: Property }>("/api/v1/properties", { method: "POST", body: JSON.stringify(input) })).data;
 }
 
@@ -201,9 +278,7 @@ export async function listUnits(propertyId: string): Promise<Unit[]> {
   return (await request<{ data: Unit[] }>(`/api/v1/properties/${propertyId}/units`)).data;
 }
 
-export async function createUnit(propertyId: string, input: {
-  referenceCode: string; label: string; bedrooms?: number; bathrooms?: number; floorArea?: number; floorAreaUnit?: "sqft" | "sqm";
-}): Promise<Unit> {
+export async function createUnit(propertyId: string, input: { referenceCode: string; label: string; bedrooms?: number; bathrooms?: number; floorArea?: number; floorAreaUnit?: "sqft" | "sqm" }): Promise<Unit> {
   return (await request<{ data: Unit }>(`/api/v1/properties/${propertyId}/units`, { method: "POST", body: JSON.stringify(input) })).data;
 }
 
@@ -219,9 +294,7 @@ export async function listTenancies(): Promise<Tenancy[]> {
   return (await request<{ data: Tenancy[] }>("/api/v1/tenancies")).data;
 }
 
-export async function createTenancy(input: {
-  unitId: string; primaryTenantId: string; startDate: string; endDate?: string; status?: Tenancy["status"];
-}): Promise<Tenancy> {
+export async function createTenancy(input: { unitId: string; primaryTenantId: string; startDate: string; endDate?: string; status?: Tenancy["status"] }): Promise<Tenancy> {
   return (await request<{ data: Tenancy }>("/api/v1/tenancies", { method: "POST", body: JSON.stringify(input) })).data;
 }
 
@@ -229,9 +302,7 @@ export async function listLeases(): Promise<Lease[]> {
   return (await request<{ data: Lease[] }>("/api/v1/leases")).data;
 }
 
-export async function createLease(input: {
-  tenancyId: string; referenceCode: string; startDate: string; endDate: string; rentAmountMinor: number; depositAmountMinor: number; currency: string; dueDay: number; status?: Lease["status"];
-}): Promise<Lease> {
+export async function createLease(input: { tenancyId: string; referenceCode: string; startDate: string; endDate: string; rentAmountMinor: number; depositAmountMinor: number; currency: string; dueDay: number; status?: Lease["status"] }): Promise<Lease> {
   return (await request<{ data: Lease }>("/api/v1/leases", { method: "POST", body: JSON.stringify(input) })).data;
 }
 
@@ -239,9 +310,7 @@ export async function listOwners(): Promise<Owner[]> {
   return (await request<{ data: Owner[] }>("/api/v1/owners")).data;
 }
 
-export async function createOwner(input: {
-  legalName: string; ownerType: Owner["ownerType"]; email?: string; phone?: string; status?: Owner["status"];
-}): Promise<Owner> {
+export async function createOwner(input: { legalName: string; ownerType: Owner["ownerType"]; email?: string; phone?: string; status?: Owner["status"] }): Promise<Owner> {
   return (await request<{ data: Owner }>("/api/v1/owners", { method: "POST", body: JSON.stringify(input) })).data;
 }
 
@@ -249,9 +318,7 @@ export async function listOwnershipInterests(): Promise<OwnershipInterest[]> {
   return (await request<{ data: OwnershipInterest[] }>("/api/v1/ownership-interests")).data;
 }
 
-export async function createOwnershipInterest(input: {
-  ownerId: string; propertyId: string; ownershipBps: number; effectiveFrom: string;
-}): Promise<OwnershipInterest> {
+export async function createOwnershipInterest(input: { ownerId: string; propertyId: string; ownershipBps: number; effectiveFrom: string }): Promise<OwnershipInterest> {
   return (await request<{ data: OwnershipInterest }>("/api/v1/ownership-interests", { method: "POST", body: JSON.stringify(input) })).data;
 }
 
@@ -267,14 +334,62 @@ export async function listRentPayments(): Promise<RentPayment[]> {
   return (await request<{ data: RentPayment[] }>("/api/v1/rent/payments")).data;
 }
 
-export async function createRentPayment(input: {
-  tenantId: string; amountMinor: number; currency: string; receivedAt: string; method: RentPayment["method"]; referenceCode?: string;
-}): Promise<RentPayment> {
+export async function createRentPayment(input: { tenantId: string; amountMinor: number; currency: string; receivedAt: string; method: RentPayment["method"]; referenceCode?: string }): Promise<RentPayment> {
   return (await request<{ data: RentPayment }>("/api/v1/rent/payments", { method: "POST", body: JSON.stringify(input) })).data;
 }
 
-export async function createRentAllocation(input: {
-  paymentId: string; obligationId: string; amountMinor: number;
-}): Promise<RentAllocation> {
+export async function createRentAllocation(input: { paymentId: string; obligationId: string; amountMinor: number }): Promise<RentAllocation> {
   return (await request<{ data: RentAllocation }>("/api/v1/rent/allocations", { method: "POST", body: JSON.stringify(input) })).data;
+}
+
+export async function listMaintenanceVendors(): Promise<MaintenanceVendor[]> {
+  return (await request<{ data: MaintenanceVendor[] }>("/api/v1/maintenance/vendors")).data;
+}
+
+export async function createMaintenanceVendor(input: { name: string; trade: MaintenanceVendor["trade"]; email?: string; phone?: string }): Promise<MaintenanceVendor> {
+  return (await request<{ data: MaintenanceVendor }>("/api/v1/maintenance/vendors", { method: "POST", body: JSON.stringify(input) })).data;
+}
+
+export async function listMaintenanceRequests(): Promise<MaintenanceRequest[]> {
+  return (await request<{ data: MaintenanceRequest[] }>("/api/v1/maintenance/requests")).data;
+}
+
+export async function createMaintenanceRequest(input: { propertyId: string; unitId?: string; tenantId?: string; title: string; description: string; category: MaintenanceRequest["category"]; priority: MaintenanceRequest["priority"] }): Promise<MaintenanceRequest> {
+  return (await request<{ data: MaintenanceRequest }>("/api/v1/maintenance/requests", { method: "POST", body: JSON.stringify(input) })).data;
+}
+
+export async function updateMaintenanceRequestStatus(id: string, status: MaintenanceRequest["status"]): Promise<MaintenanceRequest> {
+  return (await request<{ data: MaintenanceRequest }>(`/api/v1/maintenance/requests/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) })).data;
+}
+
+export async function listMaintenanceWorkOrders(): Promise<MaintenanceWorkOrder[]> {
+  return (await request<{ data: MaintenanceWorkOrder[] }>("/api/v1/maintenance/work-orders")).data;
+}
+
+export async function createMaintenanceWorkOrder(input: { maintenanceRequestId: string; vendorId?: string; summary: string; scheduledFor?: string }): Promise<MaintenanceWorkOrder> {
+  return (await request<{ data: MaintenanceWorkOrder }>("/api/v1/maintenance/work-orders", { method: "POST", body: JSON.stringify(input) })).data;
+}
+
+export async function updateMaintenanceWorkOrderStatus(id: string, status: MaintenanceWorkOrder["status"]): Promise<MaintenanceWorkOrder> {
+  return (await request<{ data: MaintenanceWorkOrder }>(`/api/v1/maintenance/work-orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) })).data;
+}
+
+export async function listMaintenanceQuotes(): Promise<MaintenanceQuote[]> {
+  return (await request<{ data: MaintenanceQuote[] }>("/api/v1/maintenance/quotes")).data;
+}
+
+export async function createMaintenanceQuote(input: { workOrderId: string; vendorId: string; amountMinor: number; currency: string; scopeSummary: string }): Promise<MaintenanceQuote> {
+  return (await request<{ data: MaintenanceQuote }>("/api/v1/maintenance/quotes", { method: "POST", body: JSON.stringify(input) })).data;
+}
+
+export async function decideMaintenanceQuote(id: string, decision: "approve" | "reject"): Promise<MaintenanceQuote> {
+  return (await request<{ data: MaintenanceQuote }>(`/api/v1/maintenance/quotes/${id}/decision`, { method: "POST", body: JSON.stringify({ decision }) })).data;
+}
+
+export async function listMaintenanceEvidence(): Promise<MaintenanceEvidence[]> {
+  return (await request<{ data: MaintenanceEvidence[] }>("/api/v1/maintenance/evidence")).data;
+}
+
+export async function createMaintenanceEvidence(input: { workOrderId: string; evidenceType: MaintenanceEvidence["evidenceType"]; note?: string; storageKey?: string }): Promise<MaintenanceEvidence> {
+  return (await request<{ data: MaintenanceEvidence }>("/api/v1/maintenance/evidence", { method: "POST", body: JSON.stringify(input) })).data;
 }
