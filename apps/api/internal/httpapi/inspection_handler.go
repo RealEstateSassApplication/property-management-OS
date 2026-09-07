@@ -90,7 +90,9 @@ func (h inspectionHandler) createItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h inspectionHandler) complete(w http.ResponseWriter, r *http.Request) {
-	var body struct{ Summary string `json:"summary"` }
+	var body struct {
+		Summary string `json:"summary"`
+	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
 		return
