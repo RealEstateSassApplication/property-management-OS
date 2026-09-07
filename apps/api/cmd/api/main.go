@@ -37,6 +37,7 @@ import (
 func main() {
 	cfg := config.Load()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
 	pool, err := database.Connect(startupCtx, cfg.DatabaseURL)
 	cancelStartup()
