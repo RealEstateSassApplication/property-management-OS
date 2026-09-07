@@ -14,7 +14,7 @@ type fakeRepository struct {
 	receivables  []OwnerReceivableRow
 	tenants      []TenantProfile
 	occupancies  []TenantOccupancy
-	rent          []TenantRentItem
+	rent         []TenantRentItem
 	maintenance  []TenantMaintenanceItem
 	context      TenantMaintenanceContext
 	contextError error
@@ -64,8 +64,8 @@ func TestOwnerSummaryRequiresExplicitOwnerLink(t *testing.T) {
 
 func TestOwnerSummaryAggregatesOnlyLinkedPropertyReceivables(t *testing.T) {
 	repo := fakeRepository{
-		owners: []OwnerProfile{{ID: "owner-1", LegalName: "Owner"}},
-		ownerBases: []OwnerPropertyBase{{OwnerID: "owner-1", PropertyID: "property-1", Name: "Park", OwnershipBPS: 5000}},
+		owners:      []OwnerProfile{{ID: "owner-1", LegalName: "Owner"}},
+		ownerBases:  []OwnerPropertyBase{{OwnerID: "owner-1", PropertyID: "property-1", Name: "Park", OwnershipBPS: 5000}},
 		receivables: []OwnerReceivableRow{{PropertyID: "property-1", Currency: "LKR", OutstandingMinor: 5000}},
 	}
 	service := NewService(repo, &fakeMaintenanceCreator{})
