@@ -59,7 +59,7 @@ func WithProductionRoutes(base http.Handler, pool *pgxpool.Pool, payments *payme
 	})
 
 	mux.Handle("/", base)
-	return securityHeaders(mux)
+	return observabilityMiddleware(securityHeaders(mux))
 }
 
 func securityHeaders(next http.Handler) http.Handler {

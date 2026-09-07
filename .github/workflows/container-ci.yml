@@ -1,0 +1,30 @@
+name: Container CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: Production images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build API image
+        run: docker build -f apps/api/Dockerfile --build-arg TARGET=api -t property-os-api:ci apps/api
+      - name: Build worker image
+        run: docker build -f apps/api/Dockerfile --build-arg TARGET=worker -t property-os-worker:ci apps/api
+      - name: Build MCP image
+        run: docker build -f apps/api/Dockerfile --build-arg TARGET=mcp -t property-os-mcp:ci apps/api
+      - name: Build web image
+        run: docker build -f apps/web/Dockerfile -t property-os-web:ci .
+      - name: Validate production Compose config
+        env:
+          POSTGRES_PASSWORD: ci-password
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.production.yml config >/dev/null

@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-property_os}
+      POSTGRES_USER: ${POSTGRES_USER:-property_os}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-property_os} -d ${POSTGRES_DB:-property_os}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      args: { TARGET: api }
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      API_ADDR: :8080
+      DATABASE_URL: postgres://${POSTGRES_USER:-property_os}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-property_os}?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    expose: ["8080"]
+    networks: [backend, frontend]
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      args: { TARGET: worker }
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-property_os}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-property_os}?sslmode=disable
+      PROPERTY_OS_API_BASE_URL: http://api:8080
+    depends_on:
+      postgres: { condition: service_healthy }
+      api: { condition: service_healthy }
+    networks: [backend]
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      API_BASE_URL: http://api:8080
+      PROPERTY_OS_API_BASE_URL: http://api:8080
+    depends_on:
+      api: { condition: service_healthy }
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    networks: [frontend]
+
+  mcp:
+    profiles: ["mcp"]
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      args: { TARGET: mcp }
+    env_file: .env
+    environment:
+      PROPERTY_OS_API_BASE_URL: http://api:8080
+    depends_on:
+      api: { condition: service_healthy }
+    stdin_open: true
+    tty: true
+    networks: [frontend]
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+    internal: true
+  frontend:
