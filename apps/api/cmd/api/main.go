@@ -20,10 +20,12 @@ import (
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/orgadmin"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/portals"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/reporting"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenancies"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenants"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/units"
@@ -95,6 +97,8 @@ func main() {
 	notificationService := notifications.NewService(notifications.NewPostgresRepository(pool))
 	agentActionService := agentactions.NewService(agentactions.NewPostgresRepository(pool), agentactions.NewMaintenanceExecutor(maintenanceService))
 	portalService := portals.NewService(portals.NewPostgresRepository(pool), maintenanceService)
+	organizationAdminService := orgadmin.NewService(orgadmin.NewPostgresRepository(pool))
+	reportingService := reporting.NewService(reporting.NewPostgresRepository(pool))
 
 	handler := httpapi.NewRouter(httpapi.Dependencies{
 		Authentication: authenticationService, Authorization: authorizationService,
@@ -102,6 +106,7 @@ func main() {
 		Tenancies: tenancyService, Leases: leaseService, Owners: ownerService,
 		Rent: rentService, Maintenance: maintenanceService, Documents: documentService,
 		Notifications: notificationService, AgentActions: agentActionService, Portals: portalService,
+		OrganizationAdmin: organizationAdminService, Reporting: reportingService,
 		AllowDevelopmentIdentity: allowDevelopmentIdentity,
 	})
 	server := &http.Server{Addr: cfg.Address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
