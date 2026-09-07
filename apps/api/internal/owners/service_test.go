@@ -12,9 +12,11 @@ type fakeRepository struct {
 	interestCalls int
 }
 
-func (f *fakeRepository) List(context.Context, string) ([]Owner, error) { return nil, nil }
+func (f *fakeRepository) List(context.Context, string) ([]Owner, error)      { return nil, nil }
 func (f *fakeRepository) Get(context.Context, string, string) (Owner, error) { return Owner{}, nil }
-func (f *fakeRepository) ListInterests(context.Context, string) ([]OwnershipInterest, error) { return nil, nil }
+func (f *fakeRepository) ListInterests(context.Context, string) ([]OwnershipInterest, error) {
+	return nil, nil
+}
 func (f *fakeRepository) Create(_ context.Context, organizationID string, input CreateOwnerInput) (Owner, error) {
 	f.ownerCalls++
 	f.ownerInput = input
