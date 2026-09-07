@@ -15,7 +15,9 @@ import (
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/database"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/httpapi"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenancies"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/tenants"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/units"
@@ -41,6 +43,8 @@ func main() {
 	tenantService := tenants.NewService(tenants.NewPostgresRepository(pool))
 	tenancyService := tenancies.NewService(tenancies.NewPostgresRepository(pool))
 	leaseService := leases.NewService(leases.NewPostgresRepository(pool))
+	ownerService := owners.NewService(owners.NewPostgresRepository(pool))
+	rentService := rent.NewService(rent.NewPostgresRepository(pool))
 
 	handler := httpapi.NewRouter(httpapi.Dependencies{
 		Authorization:            authorizationService,
@@ -49,6 +53,8 @@ func main() {
 		Tenants:                  tenantService,
 		Tenancies:                tenancyService,
 		Leases:                   leaseService,
+		Owners:                   ownerService,
+		Rent:                     rentService,
 		AllowDevelopmentIdentity: cfg.Environment == "development" || cfg.Environment == "test",
 	})
 
