@@ -43,11 +43,11 @@ docs/                  Architecture and domain documentation
 
 - development identity includes organization and user context
 - every business request verifies `organization_memberships`
-- route-level permissions for portfolio, people, leasing, owners, and rent
+- route-level permissions for portfolio, people, leasing, owners, rent, and maintenance
 - admin/manager can manage all current organization modules
-- accountant can read operational data and manage rent operations
+- accountant can read operational data, manage rent, and approve maintenance costs
 - viewer is read-only
-- maintenance is limited to portfolio visibility
+- maintenance role can view portfolio and execute maintenance operations but cannot approve vendor costs or manage vendor master data
 - owner role intentionally has no generalized organization access until resource-scoped owner portal authorization exists
 - development identity headers are disabled outside development/test until production OIDC/JWT is connected
 
@@ -89,6 +89,22 @@ docs/                  Architecture and domain documentation
 - currency, tenant/tenancy, payment-state, and balance checks are server-authoritative
 - manager-facing Rent workspace with obligation generation, payment posting, allocation, receivables, and cash registers
 
+### Maintenance operations
+
+- organization-scoped vendor directory with trade/status controls
+- maintenance requests linked to property, optional unit, and optional tenant
+- tenant-linked requests require an active occupancy on the selected unit
+- work orders support internal work or vendor assignment and scheduling
+- request and work-order lifecycle transitions are validated in Go/PostgreSQL transactions
+- vendor quotes use integer minor-unit money and require an independent decision permission
+- only one approved quote can exist for a work order
+- approving a quote atomically assigns its vendor and rejects competing submitted quotes
+- completion evidence supports notes today and storage references for future files/photos/invoices
+- work orders cannot complete without evidence
+- resolved request state follows completed work orders rather than a browser-supplied flag
+- quote decisions and evidence capture write actor-aware audit events
+- manager-facing Maintenance workspace for intake, dispatch, vendors, quotes, approvals, proof, and lifecycle controls
+
 ## Local development
 
 ```bash
@@ -98,11 +114,12 @@ make migrate-all
 make seed
 ```
 
-For an existing database, apply only the migrations you have not run:
+For an existing database, apply only migrations you have not run:
 
 ```bash
 make migrate-people
 make migrate-finance
+make migrate-maintenance
 make seed
 ```
 
@@ -128,7 +145,15 @@ User:         22222222-2222-2222-2222-222222222222
 Role:         admin
 ```
 
-The development seed also includes an active lease at LKR 150,000/month, a September 2026 rent obligation, a LKR 100,000 payment, and a LKR 100,000 allocation, leaving LKR 50,000 outstanding for ledger testing.
+The deterministic seed includes:
+
+- an active LKR 150,000/month lease
+- a September 2026 rent obligation with LKR 50,000 outstanding after allocation
+- a 100% property owner relationship
+- a resolved plumbing request for the active tenant/unit
+- a completed vendor work order
+- an approved LKR 18,500 quote
+- completion evidence proving the repair and post-work leak test
 
 ## API groups
 
@@ -160,6 +185,16 @@ Rent
 GET/POST       /api/v1/rent/obligations
 GET/POST       /api/v1/rent/payments
 POST           /api/v1/rent/allocations
+
+Maintenance
+GET/POST       /api/v1/maintenance/vendors
+GET/POST       /api/v1/maintenance/requests
+PATCH          /api/v1/maintenance/requests/{requestID}/status
+GET/POST       /api/v1/maintenance/work-orders
+PATCH          /api/v1/maintenance/work-orders/{workOrderID}/status
+GET/POST       /api/v1/maintenance/quotes
+POST           /api/v1/maintenance/quotes/{quoteID}/decision
+GET/POST       /api/v1/maintenance/evidence
 ```
 
 See `contracts/openapi.yaml` for the request and response contract.
@@ -171,6 +206,8 @@ See `contracts/openapi.yaml` for the request and response contract.
 - Never use floating-point values as persisted money.
 - Never trust browser-calculated financial state.
 - Derive balances from auditable ledger rows.
+- Keep financial approval permissions separate from operational execution permissions.
+- Require explicit evidence before declaring operational work complete.
 - Keep business rules in Go, not UI components.
 - Enforce organization and membership access at the backend boundary.
 - Keep tenant/person records separate from portal authentication identities.
@@ -180,9 +217,10 @@ See `contracts/openapi.yaml` for the request and response contract.
 
 ## Next domains
 
-1. Maintenance requests, work orders, vendors, quotes, and approvals
-2. Production OIDC/JWT identity adapter
-3. Documents and notifications
-4. Resource-scoped owner and tenant portals
-5. Rent adjustments, reversals, deposits, owner statements, and reconciliation
+1. Production OIDC/JWT identity adapter
+2. Documents, object storage, and notifications
+3. Resource-scoped owner and tenant portals
+4. Rent adjustments, reversals, deposits, owner statements, and reconciliation
+5. Maintenance invoice/expense posting and owner approval policies
 6. Reporting, audit surfaces, and workflow automation
+7. Avara and Blu integration adapters
