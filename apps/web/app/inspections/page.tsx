@@ -16,6 +16,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
+function label(value: string) {
+  return value.replace(/_/g, " ");
+}
+
 export default async function InspectionsPage() {
   let inspections: Inspection[] = [];
   let tenancies: Tenancy[] = [];
@@ -69,7 +73,7 @@ export default async function InspectionsPage() {
         <section className="panel">
           <div className="panelHeader"><div><p className="panelKicker">FINDING</p><h2>Add condition item</h2></div></div>
           <form className="stackedForm" action={createInspectionItemAction}>
-            <label>Inspection<select name="inspectionId" required defaultValue=""><option value="" disabled>Select open inspection</option>{inspections.filter((item) => item.status === "draft" || item.status === "in_progress").map((item) => <option key={item.id} value={item.id}>{item.primaryTenantName} · {item.propertyName} · {item.inspectionType.replaceAll("_", " ")}</option>)}</select></label>
+            <label>Inspection<select name="inspectionId" required defaultValue=""><option value="" disabled>Select open inspection</option>{inspections.filter((item) => item.status === "draft" || item.status === "in_progress").map((item) => <option key={item.id} value={item.id}>{item.primaryTenantName} · {item.propertyName} · {label(item.inspectionType)}</option>)}</select></label>
             <div className="formPair"><label>Area<input name="area" required placeholder="Kitchen" /></label><label>Item<input name="itemName" required placeholder="Sink and plumbing" /></label></div>
             <label>Condition<select name="condition" defaultValue="good"><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option><option value="damaged">Damaged</option><option value="not_applicable">Not applicable</option></select></label>
             <label>Notes<input name="notes" placeholder="Condition detail" /></label>
@@ -83,7 +87,7 @@ export default async function InspectionsPage() {
         <div className="panelHeader"><div><p className="panelKicker">REGISTER</p><h2>Inspection history</h2></div><span className="countBadge">{inspections.length}</span></div>
         {inspections.length ? <div className="dataTableWrap"><table className="dataTable"><thead><tr><th>Inspection</th><th>Property</th><th>Status</th><th>Findings</th><th>Summary</th><th>Control</th></tr></thead><tbody>{inspections.map((inspection) => {
           const items = itemsByInspection.get(inspection.id) ?? [];
-          return <tr key={inspection.id}><td><strong className="capitalize">{inspection.inspectionType.replaceAll("_", " ")}</strong><span className="recordMeta">{inspection.primaryTenantName}</span></td><td>{inspection.propertyName}<span className="recordMeta">{inspection.unitLabel}</span></td><td><span className={`statusPill status-${inspection.status}`}>{inspection.status.replaceAll("_", " ")}</span></td><td>{items.length}<span className="recordMeta">{items.filter((item) => item.condition === "damaged" || item.condition === "poor").length} attention items</span></td><td>{inspection.summary || "—"}</td><td>{inspection.status === "draft" || inspection.status === "in_progress" ? <form className="inlineForm" action={completeInspectionAction}><input type="hidden" name="inspectionId" value={inspection.id} /><input name="summary" placeholder="Completion summary" /><button className="tableButton">Complete</button></form> : inspection.status === "completed" ? <form action={acknowledgeInspectionAction}><input type="hidden" name="inspectionId" value={inspection.id} /><button className="tableButton">Acknowledge</button></form> : <span className="recordMeta">Closed</span>}</td></tr>;
+          return <tr key={inspection.id}><td><strong className="capitalize">{label(inspection.inspectionType)}</strong><span className="recordMeta">{inspection.primaryTenantName}</span></td><td>{inspection.propertyName}<span className="recordMeta">{inspection.unitLabel}</span></td><td><span className={`statusPill status-${inspection.status}`}>{label(inspection.status)}</span></td><td>{items.length}<span className="recordMeta">{items.filter((item) => item.condition === "damaged" || item.condition === "poor").length} attention items</span></td><td>{inspection.summary || "—"}</td><td>{inspection.status === "draft" || inspection.status === "in_progress" ? <form className="inlineForm" action={completeInspectionAction}><input type="hidden" name="inspectionId" value={inspection.id} /><input name="summary" placeholder="Completion summary" /><button className="tableButton">Complete</button></form> : inspection.status === "completed" ? <form action={acknowledgeInspectionAction}><input type="hidden" name="inspectionId" value={inspection.id} /><button className="tableButton">Acknowledge</button></form> : <span className="recordMeta">Closed</span>}</td></tr>;
         })}</tbody></table></div> : <div className="emptyState"><h3>No inspections</h3><p>Create the first tenancy inspection to begin condition history.</p></div>}
       </section>
     </AppShell>
