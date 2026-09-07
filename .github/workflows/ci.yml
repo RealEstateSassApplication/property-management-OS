@@ -72,6 +72,7 @@ jobs:
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-portal-seed.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-accounting-seed.sql
           psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-inspection-seed.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-payment-provider-seed.sql
       - name: Verify identity mapping seed
         env: { PGPASSWORD: property_os }
         run: test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT user_id || ':' || subject FROM user_identities WHERE issuer = 'https://idp.example.invalid'")" = "22222222-2222-2222-2222-222222222222:property-os-dev-user"
@@ -128,6 +129,12 @@ jobs:
         run: |
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT inspection_type || ':' || status FROM inspections WHERE id='30303030-3030-3030-3030-303030303030'")" = "periodic:acknowledged"
           test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM inspection_items WHERE inspection_id='30303030-3030-3030-3030-303030303030'")" = "2"
+      - name: Verify payment provider event ledger
+        env: { PGPASSWORD: property_os }
+        run: |
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT provider || ':' || event_id || ':' || status FROM payment_provider_events WHERE id='35353535-3535-3535-3535-353535353535'")" = "generic_hmac:dev-event-001:processed"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT p.method || ':' || p.reference_code || ':' || p.amount_minor FROM payment_provider_events e JOIN payments p ON p.id=e.payment_id AND p.organization_id=e.organization_id WHERE e.id='35353535-3535-3535-3535-353535353535'")" = "online:DEV-GATEWAY-001:7500000"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM pg_indexes WHERE tablename='payment_provider_events' AND indexdef ILIKE '%provider%event_id%UNIQUE%'")" -ge "1"
 
   web:
     name: Next.js web
