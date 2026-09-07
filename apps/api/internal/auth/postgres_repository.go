@@ -31,3 +31,21 @@ func (r *PostgresRepository) GetMembership(ctx context.Context, organizationID, 
 	}
 	return membership, nil
 }
+
+func (r *PostgresRepository) ResolveIdentity(ctx context.Context, issuer, subject, email string) (string, error) {
+	var userID string
+	err := r.pool.QueryRow(ctx, `
+		UPDATE user_identities
+		SET last_seen_at = now(),
+			last_seen_email = CASE WHEN NULLIF($3, '') IS NULL THEN last_seen_email ELSE $3 END
+		WHERE issuer = $1 AND subject = $2
+		RETURNING user_id
+	`, issuer, subject, email).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrIdentityNotLinked
+	}
+	if err != nil {
+		return "", err
+	}
+	return userID, nil
+}
