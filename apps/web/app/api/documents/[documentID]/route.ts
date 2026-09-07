@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteDocument } from "../../../../lib/documents";
+import { deleteDocument } from "../../../lib/documents";
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ documentID: string }> }) {
   try {
