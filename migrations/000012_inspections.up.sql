@@ -37,14 +37,12 @@ CREATE TABLE inspection_items (
     item_name TEXT NOT NULL,
     condition TEXT NOT NULL CHECK (condition IN ('good', 'fair', 'poor', 'damaged', 'not_applicable')),
     notes TEXT,
-    evidence_document_id UUID,
+    evidence_document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (id, organization_id),
     FOREIGN KEY (inspection_id, organization_id)
-        REFERENCES inspections(id, organization_id) ON DELETE CASCADE,
-    FOREIGN KEY (evidence_document_id, organization_id)
-        REFERENCES documents(id, organization_id) ON DELETE SET NULL
+        REFERENCES inspections(id, organization_id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_inspection_items_inspection
