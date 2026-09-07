@@ -1,0 +1,181 @@
+openapi: 3.1.0
+info:
+  title: Property Management OS Accounting API
+  version: 0.12.0
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/accounting/rent-adjustments:
+    get:
+      summary: List rent adjustments
+      responses:
+        '200': { description: Adjustment list }
+    post:
+      summary: Post an immutable rent charge, late fee, credit or write-off
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRentAdjustment'
+      responses:
+        '201': { description: Adjustment created }
+        '409': { description: Credit or write-off conflicts with settled balance }
+  /api/v1/accounting/payment-reversals:
+    get:
+      summary: List payment reversals
+      responses:
+        '200': { description: Payment reversal list }
+  /api/v1/accounting/payments/{paymentID}/reverse:
+    parameters:
+      - in: path
+        name: paymentID
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Reverse a posted payment and reopen affected receivables
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1 }
+      responses:
+        '201': { description: Payment reversed }
+        '409': { description: Payment already reversed }
+  /api/v1/accounting/security-deposits:
+    get:
+      summary: List security deposit liability accounts
+      responses:
+        '200': { description: Deposit account list }
+    post:
+      summary: Open a deposit account from a lease
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leaseId]
+              properties:
+                leaseId: { type: string, format: uuid }
+      responses:
+        '201': { description: Deposit account created }
+        '409': { description: Deposit account already exists }
+  /api/v1/accounting/security-deposit-transactions:
+    get:
+      summary: List deposit ledger movements
+      responses:
+        '200': { description: Deposit transaction list }
+    post:
+      summary: Post a deposit receipt, deduction, refund or adjustment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDepositTransaction'
+      responses:
+        '201': { description: Deposit movement posted }
+        '409': { description: Movement exceeds funds held }
+  /api/v1/accounting/expenses:
+    get:
+      summary: List property expenses and reversal state
+      responses:
+        '200': { description: Property expense list }
+    post:
+      summary: Record a property expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePropertyExpense'
+      responses:
+        '201': { description: Expense recorded }
+  /api/v1/accounting/expenses/{expenseID}/reverse:
+    parameters:
+      - in: path
+        name: expenseID
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Reverse a property expense without deleting the original record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Expense reversed }
+        '409': { description: Expense already reversed }
+  /api/v1/accounting/owners/{ownerID}/statement:
+    parameters:
+      - in: path
+        name: ownerID
+        required: true
+        schema: { type: string, format: uuid }
+      - in: query
+        name: from
+        required: true
+        schema: { type: string, format: date }
+      - in: query
+        name: to
+        required: true
+        schema: { type: string, format: date }
+    get:
+      summary: Generate an ownership-weighted owner statement
+      responses:
+        '200': { description: Owner statement derived from posted rent cash and unreversed expenses }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreateRentAdjustment:
+      type: object
+      required: [obligationId, adjustmentType, amountMinor, reason]
+      properties:
+        obligationId: { type: string, format: uuid }
+        adjustmentType:
+          type: string
+          enum: [charge, late_fee, credit, writeoff]
+        amountMinor: { type: integer, format: int64, minimum: 1 }
+        reason: { type: string, minLength: 1 }
+    CreateDepositTransaction:
+      type: object
+      required: [depositAccountId, transactionType, amountMinor, occurredOn, note]
+      properties:
+        depositAccountId: { type: string, format: uuid }
+        transactionType:
+          type: string
+          enum: [received, deduction, refund, adjustment_increase, adjustment_decrease]
+        amountMinor: { type: integer, format: int64, minimum: 1 }
+        occurredOn: { type: string, format: date }
+        note: { type: string, minLength: 1 }
+    CreatePropertyExpense:
+      type: object
+      required: [propertyId, category, amountMinor, currency, incurredOn, note]
+      properties:
+        propertyId: { type: string, format: uuid }
+        vendorId: { type: string, format: uuid }
+        workOrderId: { type: string, format: uuid }
+        category:
+          type: string
+          enum: [maintenance, utility, tax, insurance, management, cleaning, security, other]
+        amountMinor: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        incurredOn: { type: string, format: date }
+        note: { type: string, minLength: 1 }
+        referenceCode: { type: string }
