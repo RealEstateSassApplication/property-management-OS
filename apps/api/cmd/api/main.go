@@ -11,16 +11,38 @@ import (
 	"time"
 
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/config"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/database"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/httpapi"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/units"
 )
 
 func main() {
 	cfg := config.Load()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelStartup()
+
+	pool, err := database.Connect(startupCtx, cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("database connection failed", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	propertyService := properties.NewService(properties.NewPostgresRepository(pool))
+	unitService := units.NewService(units.NewPostgresRepository(pool))
+
+	handler := httpapi.NewRouter(httpapi.Dependencies{
+		Properties:               propertyService,
+		Units:                    unitService,
+		AllowDevelopmentIdentity: cfg.Environment == "development" || cfg.Environment == "test",
+	})
+
 	server := &http.Server{
 		Addr:              cfg.Address,
-		Handler:           httpapi.NewRouter(),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

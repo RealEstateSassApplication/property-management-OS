@@ -21,7 +21,17 @@ jobs:
       - name: Format check
         working-directory: apps/api
         run: |
-          test -z "$(gofmt -l .)"
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            echo "Go files require gofmt:"
+            echo "$files"
+            exit 1
+          fi
+      - name: Verify module metadata
+        working-directory: apps/api
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
       - name: Test
         working-directory: apps/api
         run: go test ./...
