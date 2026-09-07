@@ -1,5 +1,23 @@
 ALTER TABLE rent_obligations ADD COLUMN base_amount_minor BIGINT;
 UPDATE rent_obligations SET base_amount_minor = amount_minor;
+
+CREATE FUNCTION set_rent_obligation_base_amount()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.base_amount_minor IS NULL THEN
+        NEW.base_amount_minor := NEW.amount_minor;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER rent_obligations_set_base_amount
+BEFORE INSERT ON rent_obligations
+FOR EACH ROW
+EXECUTE FUNCTION set_rent_obligation_base_amount();
+
 ALTER TABLE rent_obligations ALTER COLUMN base_amount_minor SET NOT NULL;
 ALTER TABLE rent_obligations ADD CONSTRAINT rent_obligations_base_amount_positive CHECK (base_amount_minor > 0);
 
