@@ -20,6 +20,9 @@ func TestAuthorizeAllowsManager(t *testing.T) {
 	if _, err := service.Authorize(context.Background(), "org", "user", ManageLeases); err != nil {
 		t.Fatalf("expected manager to be allowed: %v", err)
 	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageNotifications); err != nil {
+		t.Fatalf("expected manager to manage notifications: %v", err)
+	}
 }
 
 func TestAuthorizeAllowsAccountantToManageRentAndApproveMaintenanceCosts(t *testing.T) {
@@ -32,6 +35,19 @@ func TestAuthorizeAllowsAccountantToManageRentAndApproveMaintenanceCosts(t *test
 	}
 	if _, err := service.Authorize(context.Background(), "org", "user", ManageMaintenance); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("expected accountant operational maintenance writes to be forbidden, got %v", err)
+	}
+}
+
+func TestAuthorizeAccountantCanQueueRentReminderButNotArbitraryNotification(t *testing.T) {
+	service := NewService(fakeMembershipRepository{membership: Membership{Role: "accountant"}})
+	if _, err := service.Authorize(context.Background(), "org", "user", ViewNotifications); err != nil {
+		t.Fatalf("expected accountant to view notification delivery state: %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", SendRentReminders); err != nil {
+		t.Fatalf("expected accountant to send server-authored rent reminders: %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageNotifications); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected generic notification creation to remain manager/admin-only, got %v", err)
 	}
 }
 
@@ -55,6 +71,9 @@ func TestAuthorizeRestrictsViewerWrites(t *testing.T) {
 	}
 	if _, err := service.Authorize(context.Background(), "org", "user", ViewMaintenance); err != nil {
 		t.Fatalf("expected viewer to read maintenance, got %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ViewNotifications); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected notification delivery register to stay restricted, got %v", err)
 	}
 }
 
