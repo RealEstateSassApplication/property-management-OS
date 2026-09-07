@@ -16,17 +16,17 @@ import (
 )
 
 type Dependencies struct {
-	Authentication             *auth.Authenticator
-	Authorization              *auth.Service
-	Properties                 *properties.Service
-	Units                      *units.Service
-	Tenants                    *tenants.Service
-	Tenancies                  *tenancies.Service
-	Leases                     *leases.Service
-	Owners                     *owners.Service
-	Rent                       *rent.Service
-	Maintenance                *maintenance.Service
-	AllowDevelopmentIdentity   bool
+	Authentication           *auth.Authenticator
+	Authorization            *auth.Service
+	Properties               *properties.Service
+	Units                    *units.Service
+	Tenants                  *tenants.Service
+	Tenancies                *tenancies.Service
+	Leases                   *leases.Service
+	Owners                   *owners.Service
+	Rent                     *rent.Service
+	Maintenance              *maintenance.Service
+	AllowDevelopmentIdentity bool
 }
 
 type Router struct {
