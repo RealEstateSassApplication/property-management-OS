@@ -6,6 +6,7 @@ import (
 
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/auth"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/leases"
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/owners"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/properties"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/rent"
@@ -23,6 +24,7 @@ type Dependencies struct {
 	Leases                   *leases.Service
 	Owners                   *owners.Service
 	Rent                     *rent.Service
+	Maintenance              *maintenance.Service
 	AllowDevelopmentIdentity bool
 }
 
@@ -112,6 +114,23 @@ func (r *Router) routes(deps Dependencies) {
 		r.mux.Handle("GET /api/v1/rent/payments", protect(auth.ViewRent, h.listPayments))
 		r.mux.Handle("POST /api/v1/rent/payments", protect(auth.ManageRent, h.createPayment))
 		r.mux.Handle("POST /api/v1/rent/allocations", protect(auth.ManageRent, h.createAllocation))
+	}
+
+	if deps.Maintenance != nil {
+		h := maintenanceHandler{service: deps.Maintenance}
+		r.mux.Handle("GET /api/v1/maintenance/vendors", protect(auth.ViewMaintenance, h.listVendors))
+		r.mux.Handle("POST /api/v1/maintenance/vendors", protect(auth.ManageMaintenanceVendors, h.createVendor))
+		r.mux.Handle("GET /api/v1/maintenance/requests", protect(auth.ViewMaintenance, h.listRequests))
+		r.mux.Handle("POST /api/v1/maintenance/requests", protect(auth.ManageMaintenance, h.createRequest))
+		r.mux.Handle("PATCH /api/v1/maintenance/requests/{requestID}/status", protect(auth.ManageMaintenance, h.updateRequestStatus))
+		r.mux.Handle("GET /api/v1/maintenance/work-orders", protect(auth.ViewMaintenance, h.listWorkOrders))
+		r.mux.Handle("POST /api/v1/maintenance/work-orders", protect(auth.ManageMaintenance, h.createWorkOrder))
+		r.mux.Handle("PATCH /api/v1/maintenance/work-orders/{workOrderID}/status", protect(auth.ManageMaintenance, h.updateWorkOrderStatus))
+		r.mux.Handle("GET /api/v1/maintenance/quotes", protect(auth.ViewMaintenance, h.listQuotes))
+		r.mux.Handle("POST /api/v1/maintenance/quotes", protect(auth.ManageMaintenance, h.createQuote))
+		r.mux.Handle("POST /api/v1/maintenance/quotes/{quoteID}/decision", protect(auth.ApproveMaintenanceCosts, h.decideQuote))
+		r.mux.Handle("GET /api/v1/maintenance/evidence", protect(auth.ViewMaintenance, h.listEvidence))
+		r.mux.Handle("POST /api/v1/maintenance/evidence", protect(auth.ManageMaintenance, h.createEvidence))
 	}
 }
 

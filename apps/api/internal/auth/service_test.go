@@ -22,13 +22,29 @@ func TestAuthorizeAllowsManager(t *testing.T) {
 	}
 }
 
-func TestAuthorizeAllowsAccountantToManageRent(t *testing.T) {
+func TestAuthorizeAllowsAccountantToManageRentAndApproveMaintenanceCosts(t *testing.T) {
 	service := NewService(fakeMembershipRepository{membership: Membership{Role: "accountant"}})
 	if _, err := service.Authorize(context.Background(), "org", "user", ManageRent); err != nil {
 		t.Fatalf("expected accountant to manage rent: %v", err)
 	}
-	if _, err := service.Authorize(context.Background(), "org", "user", ManageOwners); !errors.Is(err, ErrForbidden) {
-		t.Fatalf("expected accountant owner writes to be forbidden, got %v", err)
+	if _, err := service.Authorize(context.Background(), "org", "user", ApproveMaintenanceCosts); err != nil {
+		t.Fatalf("expected accountant to approve maintenance costs: %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageMaintenance); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected accountant operational maintenance writes to be forbidden, got %v", err)
+	}
+}
+
+func TestAuthorizeAllowsMaintenanceOperationsButNotCostOrVendorApproval(t *testing.T) {
+	service := NewService(fakeMembershipRepository{membership: Membership{Role: "maintenance"}})
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageMaintenance); err != nil {
+		t.Fatalf("expected maintenance role to operate work orders: %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ApproveMaintenanceCosts); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected maintenance cost approval to be forbidden, got %v", err)
+	}
+	if _, err := service.Authorize(context.Background(), "org", "user", ManageMaintenanceVendors); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected maintenance vendor management to be forbidden, got %v", err)
 	}
 }
 
@@ -37,8 +53,8 @@ func TestAuthorizeRestrictsViewerWrites(t *testing.T) {
 	if _, err := service.Authorize(context.Background(), "org", "user", ManageRent); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("expected forbidden, got %v", err)
 	}
-	if _, err := service.Authorize(context.Background(), "org", "user", ViewRent); err != nil {
-		t.Fatalf("expected viewer to read rent, got %v", err)
+	if _, err := service.Authorize(context.Background(), "org", "user", ViewMaintenance); err != nil {
+		t.Fatalf("expected viewer to read maintenance, got %v", err)
 	}
 }
 
