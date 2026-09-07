@@ -1,0 +1,78 @@
+openapi: 3.1.0
+info:
+  title: Property Management OS Administration and Reporting API
+  version: 0.11.0
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/organization:
+    get:
+      summary: Read organization settings
+      responses:
+        '200': { description: Organization settings }
+    patch:
+      summary: Update organization operating defaults
+      responses:
+        '200': { description: Updated settings }
+  /api/v1/organization/members:
+    get:
+      summary: List organization members
+      responses:
+        '200': { description: Member list }
+    post:
+      summary: Add or invite an organization member
+      responses:
+        '201': { description: Member created or linked }
+  /api/v1/organization/members/{userID}:
+    parameters:
+      - in: path
+        name: userID
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      summary: Change organization role
+      responses:
+        '200': { description: Updated member }
+        '409': { description: Final admin cannot be demoted }
+    delete:
+      summary: Remove organization membership
+      responses:
+        '204': { description: Removed }
+        '409': { description: Final admin cannot be removed }
+  /api/v1/organization/portal-links:
+    get:
+      summary: List owner and tenant portal links
+      responses:
+        '200': { description: Portal link list }
+  /api/v1/organization/portal-links/owners:
+    post:
+      summary: Link an owner-role user to an owner record
+      responses:
+        '201': { description: Link created }
+  /api/v1/organization/portal-links/tenants:
+    post:
+      summary: Link a tenant-role user to a tenant record
+      responses:
+        '201': { description: Link created }
+  /api/v1/reporting/dashboard:
+    get:
+      summary: Read derived portfolio operating KPIs
+      responses:
+        '200': { description: Reporting dashboard }
+  /api/v1/audit-events:
+    get:
+      summary: List organization audit events
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200': { description: Audit event list }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
