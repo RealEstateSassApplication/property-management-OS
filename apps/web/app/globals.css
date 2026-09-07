@@ -57,6 +57,8 @@ button, input, select { font: inherit; }
 .noticePanel code { display: inline-block; padding: 7px 9px; background: rgba(255,255,255,.55); font-size: 12px; }
 
 .contentGrid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(290px, .7fr); gap: 22px; margin-top: 30px; align-items: start; }
+.leasingGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 30px; align-items: start; }
+.leasingRegister { margin-top: 22px; }
 .panel { border: 1px solid var(--line); background: rgba(251,250,247,.7); }
 .panelWide { min-width: 0; }
 .panelHeader { min-height: 88px; padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); }
@@ -77,8 +79,8 @@ button, input, select { font: inherit; }
 .statusPill { display: inline-flex; padding: 5px 8px; border-radius: 999px; background: #e7e8e4; color: #555b55; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .status-active, .status-occupied { background: #e1ebe4; color: #2c5a3e; }
 .status-vacant { background: #edf0eb; color: #5d655f; }
-.status-reserved { background: #eee8d8; color: #765d27; }
-.status-unavailable, .status-archived, .status-inactive { background: #eee4e1; color: #7a5045; }
+.status-reserved, .status-upcoming, .status-prospect, .status-draft { background: #eee8d8; color: #765d27; }
+.status-unavailable, .status-archived, .status-inactive, .status-former, .status-blocked, .status-ended, .status-cancelled, .status-expired, .status-terminated { background: #eee4e1; color: #7a5045; }
 .emptyState { min-height: 230px; display: grid; place-content: center; padding: 40px; text-align: center; }
 .emptyState h3 { margin: 0 0 8px; font-family: Georgia, "Times New Roman", serif; font-size: 25px; font-weight: 400; }
 .emptyState p { max-width: 390px; margin: 0; color: var(--muted); line-height: 1.5; }
@@ -90,6 +92,7 @@ button, input, select { font: inherit; }
 .formPair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .primaryButton { margin-top: 5px; padding: 12px 16px; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: 700; }
 .primaryButton:hover { filter: brightness(1.08); }
+.primaryButton:disabled { opacity: .45; cursor: not-allowed; filter: none; }
 
 .backLink { display: inline-block; color: var(--muted); font-size: 12px; }
 .backLink:hover { color: var(--foreground); }
@@ -104,7 +107,7 @@ button, input, select { font: inherit; }
   .navList { margin-top: 22px; display: flex; overflow-x: auto; }
   .navItem { white-space: nowrap; }
   .sidebarFoot { display: none; }
-  .contentGrid { grid-template-columns: 1fr; }
+  .contentGrid, .leasingGrid { grid-template-columns: 1fr; }
   .workspaceHeader { align-items: flex-start; flex-direction: column; }
   .propertyFacts { grid-template-columns: 1fr 1fr; }
 }

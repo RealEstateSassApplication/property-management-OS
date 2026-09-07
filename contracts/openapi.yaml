@@ -1,8 +1,11 @@
 openapi: 3.1.0
 info:
   title: Property Management OS API
-  version: 0.2.0
-  description: Contract for the Property Management OS backend.
+  version: 0.3.0
+  description: |
+    Contract for the Property Management OS backend.
+    Business endpoints require authenticated organization membership. During local development only,
+    X-Organization-ID and X-User-ID are used to inject identity before membership/RBAC verification.
 servers:
   - url: http://localhost:8080
     description: Local development
@@ -16,8 +19,7 @@ paths:
           description: API is healthy
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/HealthResponse'
+              schema: { $ref: '#/components/schemas/HealthResponse' }
   /api/v1:
     get:
       operationId: getApiInfo
@@ -27,308 +29,367 @@ paths:
           description: API metadata
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ApiInfo'
+              schema: { $ref: '#/components/schemas/ApiInfo' }
   /api/v1/properties:
-    parameters:
-      - $ref: '#/components/parameters/DevelopmentOrganizationHeader'
+    parameters: &devIdentity
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
     get:
       operationId: listProperties
       summary: List organization properties
       responses:
-        '200':
-          description: Property collection
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Property'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        '200': { $ref: '#/components/responses/PropertyList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       operationId: createProperty
-      summary: Create a managed property
+      summary: Create a property
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/CreateProperty'
+            schema: { $ref: '#/components/schemas/PropertyCreate' }
       responses:
-        '201':
-          description: Property created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PropertyEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        '201': { $ref: '#/components/responses/PropertyItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /api/v1/properties/{propertyID}:
     parameters:
-      - $ref: '#/components/parameters/DevelopmentOrganizationHeader'
-      - name: propertyID
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/PropertyID' }
     get:
       operationId: getProperty
-      summary: Get one organization-scoped property
+      summary: Get a property
       responses:
-        '200':
-          description: Property
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PropertyEnvelope'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        '200': { $ref: '#/components/responses/PropertyItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
     patch:
       operationId: updateProperty
-      summary: Update one organization-scoped property
+      summary: Update a property
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateProperty'
+            schema: { $ref: '#/components/schemas/PropertyUpdate' }
       responses:
-        '200':
-          description: Updated property
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PropertyEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        '200': { $ref: '#/components/responses/PropertyItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/properties/{propertyID}/units:
     parameters:
-      - $ref: '#/components/parameters/DevelopmentOrganizationHeader'
-      - name: propertyID
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/PropertyID' }
     get:
-      operationId: listPropertyUnits
-      summary: List units in an organization-scoped property
+      operationId: listUnitsByProperty
+      summary: List units for a property
       responses:
-        '200':
-          description: Unit collection
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Unit'
+        '200': { $ref: '#/components/responses/UnitList' }
     post:
       operationId: createUnit
-      summary: Create a unit inside a property
+      summary: Create a unit
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/CreateUnit'
+            schema: { $ref: '#/components/schemas/UnitCreate' }
       responses:
-        '201':
-          description: Unit created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnitEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        '201': { $ref: '#/components/responses/UnitItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
   /api/v1/units/{unitID}:
     parameters:
-      - $ref: '#/components/parameters/DevelopmentOrganizationHeader'
-      - name: unitID
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/UnitID' }
     get:
       operationId: getUnit
-      summary: Get one organization-scoped unit
+      summary: Get a unit
       responses:
-        '200':
-          description: Unit
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnitEnvelope'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        '200': { $ref: '#/components/responses/UnitItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
     patch:
       operationId: updateUnit
-      summary: Update one organization-scoped unit
+      summary: Update a unit
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUnit'
+            schema: { $ref: '#/components/schemas/UnitUpdate' }
       responses:
-        '200':
-          description: Updated unit
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnitEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        '200': { $ref: '#/components/responses/UnitItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/tenants:
+    parameters:
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+    get:
+      operationId: listTenants
+      summary: List tenant records
+      responses:
+        '200': { $ref: '#/components/responses/TenantList' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createTenant
+      summary: Create a tenant record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantCreate' }
+      responses:
+        '201': { $ref: '#/components/responses/TenantItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/v1/tenants/{tenantID}:
+    parameters:
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/TenantID' }
+    get:
+      operationId: getTenant
+      summary: Get a tenant record
+      responses:
+        '200': { $ref: '#/components/responses/TenantItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateTenant
+      summary: Update a tenant record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantUpdate' }
+      responses:
+        '200': { $ref: '#/components/responses/TenantItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/tenancies:
+    parameters:
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+    get:
+      operationId: listTenancies
+      summary: List occupancy relationships
+      responses:
+        '200': { $ref: '#/components/responses/TenancyList' }
+    post:
+      operationId: createTenancy
+      summary: Create an occupancy relationship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenancyCreate' }
+      responses:
+        '201': { $ref: '#/components/responses/TenancyItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/tenancies/{tenancyID}:
+    parameters:
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/TenancyID' }
+    get:
+      operationId: getTenancy
+      summary: Get an occupancy relationship
+      responses:
+        '200': { $ref: '#/components/responses/TenancyItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateTenancy
+      summary: Update tenancy lifecycle state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenancyUpdate' }
+      responses:
+        '200': { $ref: '#/components/responses/TenancyItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/leases:
+    parameters:
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+    get:
+      operationId: listLeases
+      summary: List lease contracts
+      responses:
+        '200': { $ref: '#/components/responses/LeaseList' }
+    post:
+      operationId: createLease
+      summary: Create a lease contract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaseCreate' }
+      responses:
+        '201': { $ref: '#/components/responses/LeaseItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/leases/{leaseID}:
+    parameters:
+      - { $ref: '#/components/parameters/DevelopmentOrganization' }
+      - { $ref: '#/components/parameters/DevelopmentUser' }
+      - { $ref: '#/components/parameters/LeaseID' }
+    get:
+      operationId: getLease
+      summary: Get a lease contract
+      responses:
+        '200': { $ref: '#/components/responses/LeaseItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateLease
+      summary: Transition lease lifecycle state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaseUpdate' }
+      responses:
+        '200': { $ref: '#/components/responses/LeaseItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
 components:
   parameters:
-    DevelopmentOrganizationHeader:
+    DevelopmentOrganization:
       name: X-Organization-ID
       in: header
       required: true
-      description: Development-only organization context. Production will replace this with authenticated organization context.
-      schema:
-        type: string
-        format: uuid
+      description: Development-only organization identity. Production will use verified provider claims.
+      schema: { type: string, format: uuid }
+    DevelopmentUser:
+      name: X-User-ID
+      in: header
+      required: true
+      description: Development-only user identity. Membership and role are still verified server-side.
+      schema: { type: string, format: uuid }
+    PropertyID: { name: propertyID, in: path, required: true, schema: { type: string, format: uuid } }
+    UnitID: { name: unitID, in: path, required: true, schema: { type: string, format: uuid } }
+    TenantID: { name: tenantID, in: path, required: true, schema: { type: string, format: uuid } }
+    TenancyID: { name: tenancyID, in: path, required: true, schema: { type: string, format: uuid } }
+    LeaseID: { name: leaseID, in: path, required: true, schema: { type: string, format: uuid } }
   responses:
+    PropertyItem:
+      description: Property
+      content: { application/json: { schema: { $ref: '#/components/schemas/PropertyEnvelope' } } }
+    PropertyList:
+      description: Properties
+      content: { application/json: { schema: { $ref: '#/components/schemas/PropertyListEnvelope' } } }
+    UnitItem:
+      description: Unit
+      content: { application/json: { schema: { $ref: '#/components/schemas/UnitEnvelope' } } }
+    UnitList:
+      description: Units
+      content: { application/json: { schema: { $ref: '#/components/schemas/UnitListEnvelope' } } }
+    TenantItem:
+      description: Tenant
+      content: { application/json: { schema: { $ref: '#/components/schemas/TenantEnvelope' } } }
+    TenantList:
+      description: Tenants
+      content: { application/json: { schema: { $ref: '#/components/schemas/TenantListEnvelope' } } }
+    TenancyItem:
+      description: Tenancy
+      content: { application/json: { schema: { $ref: '#/components/schemas/TenancyEnvelope' } } }
+    TenancyList:
+      description: Tenancies
+      content: { application/json: { schema: { $ref: '#/components/schemas/TenancyListEnvelope' } } }
+    LeaseItem:
+      description: Lease
+      content: { application/json: { schema: { $ref: '#/components/schemas/LeaseEnvelope' } } }
+    LeaseList:
+      description: Leases
+      content: { application/json: { schema: { $ref: '#/components/schemas/LeaseListEnvelope' } } }
     BadRequest:
-      description: Request validation failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      description: Invalid request
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } }
     Unauthorized:
-      description: Organization context is missing
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      description: Identity is missing
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } }
+    Forbidden:
+      description: Membership or permission denied
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } }
     NotFound:
-      description: Resource does not exist in this organization
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      description: Resource not found in organization scope
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } }
+    Conflict:
+      description: Lifecycle or occupancy conflict
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemEnvelope' } } }
   schemas:
     HealthResponse:
       type: object
       required: [status, service, timestamp]
       properties:
-        status:
-          type: string
-          const: ok
-        service:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
+        status: { type: string, const: ok }
+        service: { type: string }
+        timestamp: { type: string, format: date-time }
     ApiInfo:
       type: object
       required: [name, version]
       properties:
-        name:
-          type: string
-        version:
-          type: string
-    ErrorEnvelope:
-      type: object
-      required: [error]
-      properties:
-        error:
-          $ref: '#/components/schemas/Problem'
+        name: { type: string }
+        version: { type: string }
     Problem:
       type: object
       required: [code, message]
       properties:
-        code:
-          type: string
-        message:
-          type: string
-    PropertyEnvelope:
+        code: { type: string }
+        message: { type: string }
+    ProblemEnvelope:
       type: object
-      required: [data]
+      required: [error]
       properties:
-        data:
-          $ref: '#/components/schemas/Property'
+        error: { $ref: '#/components/schemas/Problem' }
     Property:
       type: object
       required: [id, organizationId, name, propertyType, addressLine1, city, countryCode, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
-        referenceCode: { type: [string, 'null'] }
+        referenceCode: { type: string }
         name: { type: string }
-        propertyType:
-          type: string
-          enum: [house, apartment, building, commercial, land, other]
+        propertyType: { type: string, enum: [house, apartment, building, commercial, land, other] }
         addressLine1: { type: string }
-        addressLine2: { type: [string, 'null'] }
+        addressLine2: { type: string }
         city: { type: string }
-        region: { type: [string, 'null'] }
-        postalCode: { type: [string, 'null'] }
+        region: { type: string }
+        postalCode: { type: string }
         countryCode: { type: string, minLength: 2, maxLength: 2 }
-        status:
-          type: string
-          enum: [active, inactive, archived]
-        externalAvaraPropertyId: { type: [string, 'null'] }
+        status: { type: string, enum: [active, inactive, archived] }
+        externalAvaraPropertyId: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    CreateProperty:
+    PropertyCreate:
       type: object
       required: [name, propertyType, addressLine1, city, countryCode]
       properties:
-        referenceCode: { type: [string, 'null'] }
-        name: { type: string, minLength: 1 }
-        propertyType:
-          type: string
-          enum: [house, apartment, building, commercial, land, other]
-        addressLine1: { type: string, minLength: 1 }
-        addressLine2: { type: [string, 'null'] }
-        city: { type: string, minLength: 1 }
-        region: { type: [string, 'null'] }
-        postalCode: { type: [string, 'null'] }
-        countryCode: { type: string, minLength: 2, maxLength: 2 }
-        externalAvaraPropertyId: { type: [string, 'null'] }
-    UpdateProperty:
+        referenceCode: { type: string }
+        name: { type: string }
+        propertyType: { type: string }
+        addressLine1: { type: string }
+        addressLine2: { type: string }
+        city: { type: string }
+        region: { type: string }
+        postalCode: { type: string }
+        countryCode: { type: string }
+        externalAvaraPropertyId: { type: string }
+    PropertyUpdate:
       type: object
       properties:
-        referenceCode: { type: [string, 'null'] }
-        name: { type: string, minLength: 1 }
-        propertyType:
-          type: string
-          enum: [house, apartment, building, commercial, land, other]
-        addressLine1: { type: string, minLength: 1 }
-        addressLine2: { type: [string, 'null'] }
-        city: { type: string, minLength: 1 }
-        region: { type: [string, 'null'] }
-        postalCode: { type: [string, 'null'] }
-        countryCode: { type: string, minLength: 2, maxLength: 2 }
-        status:
-          type: string
-          enum: [active, inactive, archived]
-    UnitEnvelope:
-      type: object
-      required: [data]
-      properties:
-        data:
-          $ref: '#/components/schemas/Unit'
+        referenceCode: { type: string }
+        name: { type: string }
+        propertyType: { type: string }
+        addressLine1: { type: string }
+        addressLine2: { type: string }
+        city: { type: string }
+        region: { type: string }
+        postalCode: { type: string }
+        countryCode: { type: string }
+        status: { type: string }
     Unit:
       type: object
       required: [id, organizationId, propertyId, referenceCode, label, occupancyStatus, createdAt, updatedAt]
@@ -338,40 +399,139 @@ components:
         propertyId: { type: string, format: uuid }
         referenceCode: { type: string }
         label: { type: string }
-        bedrooms: { type: [number, 'null'], minimum: 0 }
-        bathrooms: { type: [number, 'null'], minimum: 0 }
-        floorArea: { type: [number, 'null'], minimum: 0 }
-        floorAreaUnit:
-          type: [string, 'null']
-          enum: [sqft, sqm, null]
-        occupancyStatus:
-          type: string
-          enum: [vacant, occupied, reserved, unavailable]
+        bedrooms: { type: number }
+        bathrooms: { type: number }
+        floorArea: { type: number }
+        floorAreaUnit: { type: string, enum: [sqft, sqm] }
+        occupancyStatus: { type: string, enum: [vacant, occupied, reserved, unavailable] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    CreateUnit:
+    UnitCreate:
       type: object
       required: [referenceCode, label]
       properties:
-        referenceCode: { type: string, minLength: 1 }
-        label: { type: string, minLength: 1 }
-        bedrooms: { type: [number, 'null'], minimum: 0 }
-        bathrooms: { type: [number, 'null'], minimum: 0 }
-        floorArea: { type: [number, 'null'], minimum: 0 }
-        floorAreaUnit:
-          type: [string, 'null']
-          enum: [sqft, sqm, null]
-    UpdateUnit:
+        referenceCode: { type: string }
+        label: { type: string }
+        bedrooms: { type: number }
+        bathrooms: { type: number }
+        floorArea: { type: number }
+        floorAreaUnit: { type: string, enum: [sqft, sqm] }
+        occupancyStatus: { type: string, enum: [vacant, occupied, reserved, unavailable] }
+    UnitUpdate:
       type: object
       properties:
-        referenceCode: { type: string, minLength: 1 }
-        label: { type: string, minLength: 1 }
-        bedrooms: { type: number, minimum: 0 }
-        bathrooms: { type: number, minimum: 0 }
-        floorArea: { type: number, minimum: 0 }
-        floorAreaUnit:
-          type: string
-          enum: [sqft, sqm]
-        occupancyStatus:
-          type: string
-          enum: [vacant, occupied, reserved, unavailable]
+        referenceCode: { type: string }
+        label: { type: string }
+        bedrooms: { type: number }
+        bathrooms: { type: number }
+        floorArea: { type: number }
+        floorAreaUnit: { type: string }
+        occupancyStatus: { type: string }
+    Tenant:
+      type: object
+      required: [id, organizationId, legalName, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        legalName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        status: { type: string, enum: [prospect, active, former, blocked] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TenantCreate:
+      type: object
+      required: [legalName]
+      properties:
+        legalName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        status: { type: string, enum: [prospect, active, former, blocked], default: prospect }
+    TenantUpdate:
+      type: object
+      properties:
+        legalName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        status: { type: string, enum: [prospect, active, former, blocked] }
+    Tenancy:
+      type: object
+      required: [id, organizationId, unitId, unitLabel, propertyName, primaryTenantId, primaryTenantName, occupantCount, startDate, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        unitId: { type: string, format: uuid }
+        unitLabel: { type: string }
+        propertyName: { type: string }
+        primaryTenantId: { type: string, format: uuid }
+        primaryTenantName: { type: string }
+        occupantCount: { type: integer }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        status: { type: string, enum: [upcoming, active, ended, cancelled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TenancyCreate:
+      type: object
+      required: [unitId, primaryTenantId, startDate]
+      properties:
+        unitId: { type: string, format: uuid }
+        primaryTenantId: { type: string, format: uuid }
+        occupantTenantIds:
+          type: array
+          items: { type: string, format: uuid }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        status: { type: string, enum: [upcoming, active, ended, cancelled], default: upcoming }
+    TenancyUpdate:
+      type: object
+      properties:
+        endDate: { type: string, format: date }
+        status: { type: string, enum: [upcoming, active, ended, cancelled] }
+    Lease:
+      type: object
+      required: [id, organizationId, tenancyId, referenceCode, propertyName, unitLabel, primaryTenantName, startDate, endDate, rentAmountMinor, depositAmountMinor, currency, dueDay, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        tenancyId: { type: string, format: uuid }
+        referenceCode: { type: string }
+        propertyName: { type: string }
+        unitLabel: { type: string }
+        primaryTenantName: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        rentAmountMinor: { type: integer, format: int64, description: Rent in currency minor units; never floating-point money. }
+        depositAmountMinor: { type: integer, format: int64 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        status: { type: string, enum: [draft, active, expired, terminated, cancelled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    LeaseCreate:
+      type: object
+      required: [tenancyId, referenceCode, startDate, endDate, rentAmountMinor, currency, dueDay]
+      properties:
+        tenancyId: { type: string, format: uuid }
+        referenceCode: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        rentAmountMinor: { type: integer, format: int64, minimum: 1 }
+        depositAmountMinor: { type: integer, format: int64, minimum: 0, default: 0 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        status: { type: string, enum: [draft, active, expired, terminated, cancelled], default: draft }
+    LeaseUpdate:
+      type: object
+      properties:
+        status: { type: string, enum: [draft, active, expired, terminated, cancelled] }
+    PropertyEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Property' } } }
+    PropertyListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Property' } } } }
+    UnitEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Unit' } } }
+    UnitListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Unit' } } } }
+    TenantEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Tenant' } } }
+    TenantListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Tenant' } } } }
+    TenancyEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Tenancy' } } }
+    TenancyListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Tenancy' } } } }
+    LeaseEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Lease' } } }
+    LeaseListEnvelope: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Lease' } } } }

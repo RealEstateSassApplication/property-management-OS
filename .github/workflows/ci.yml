@@ -39,6 +39,43 @@ jobs:
         working-directory: apps/api
         run: go build ./cmd/api
 
+  database:
+    name: PostgreSQL migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: property_os
+          POSTGRES_USER: property_os
+          POSTGRES_PASSWORD: property_os
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U property_os -d property_os"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y postgresql-client
+      - name: Apply migrations and seed
+        env:
+          PGPASSWORD: property_os
+        run: |
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000001_core.up.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f migrations/000002_people_leasing.up.sql
+          psql -h localhost -U property_os -d property_os -v ON_ERROR_STOP=1 -f scripts/dev-seed.sql
+      - name: Verify leasing seed
+        env:
+          PGPASSWORD: property_os
+        run: |
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM tenancies WHERE id = '77777777-7777-7777-7777-777777777777' AND status = 'active'")" = "1"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT count(*) FROM leases WHERE id = '88888888-8888-8888-8888-888888888888' AND status = 'active'")" = "1"
+
   web:
     name: Next.js web
     runs-on: ubuntu-latest
