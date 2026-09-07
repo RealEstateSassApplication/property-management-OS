@@ -53,10 +53,10 @@ type DecisionInput struct {
 }
 
 var (
-	ErrQuoteNotFound       = errors.New("maintenance quote not found")
-	ErrQuoteNotProposable  = errors.New("only submitted maintenance quotes can be proposed for approval")
-	ErrActionNotFound      = errors.New("agent action request not found")
-	ErrActionNotPending    = errors.New("agent action request is no longer pending review")
-	ErrUnsupportedAction   = errors.New("unsupported agent action")
-	ErrExecutionFailed     = errors.New("approved agent action execution failed")
+	ErrQuoteNotFound      = errors.New("maintenance quote not found")
+	ErrQuoteNotProposable = errors.New("only submitted maintenance quotes can be proposed for approval")
+	ErrActionNotFound     = errors.New("agent action request not found")
+	ErrActionNotPending   = errors.New("agent action request is no longer pending review")
+	ErrUnsupportedAction  = errors.New("unsupported agent action")
+	ErrExecutionFailed    = errors.New("approved agent action execution failed")
 )
