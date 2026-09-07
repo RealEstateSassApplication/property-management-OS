@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/agentactions"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/maintenance"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/notifications"
 	"github.com/RealEstateSassApplication/property-management-OS/apps/api/internal/propertyosclient"
@@ -24,6 +25,7 @@ type PortfolioSnapshotOutput struct {
 	OpenMaintenance       int              `json:"openMaintenance"`
 	LeasesExpiring60Days  int              `json:"leasesExpiring60Days"`
 	QueuedNotifications   int              `json:"queuedNotifications"`
+	PendingAgentActions   int              `json:"pendingAgentActions"`
 }
 
 type ArrearsInput struct {
@@ -72,6 +74,14 @@ type MaintenanceQueueOutput struct {
 	Items []MaintenanceQueueItem `json:"items"`
 }
 
+type QuoteOutput struct {
+	Items []maintenance.Quote `json:"items"`
+}
+
+type AgentActionOutput struct {
+	Items []agentactions.ActionRequest `json:"items"`
+}
+
 type RentReminderInput struct {
 	ObligationID string `json:"obligationId" jsonschema:"rent obligation UUID"`
 	Channel      string `json:"channel" jsonschema:"email, sms, or whatsapp"`
@@ -86,6 +96,10 @@ type CreateMaintenanceInput struct {
 	Category    string `json:"category" jsonschema:"plumbing, electrical, hvac, appliance, structural, cleaning, security, or other"`
 	Priority    string `json:"priority" jsonschema:"low, normal, high, or emergency"`
 }
+type QuoteApprovalProposalInput struct {
+	QuoteID   string `json:"quoteId" jsonschema:"submitted maintenance quote UUID"`
+	Reasoning string `json:"reasoning" jsonschema:"why a human should approve this quote; include relevant operational and cost rationale"`
+}
 type MutationOutput struct {
 	ID      string `json:"id"`
 	Status  string `json:"status"`
@@ -97,7 +111,7 @@ func main() {
 	if err != nil {
 		log.New(os.Stderr, "property-os-mcp: ", 0).Fatal(err)
 	}
-	server := mcp.NewServer(&mcp.Implementation{Name: "property-management-os", Version: "v0.1.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "property-management-os", Version: "v0.2.0"}, nil)
 
 	mcp.AddTool(server, &mcp.Tool{Name: "portfolio_snapshot", Description: "Read a concise operational snapshot of the authenticated Property OS organization."}, func(ctx context.Context, _ *mcp.CallToolRequest, _ EmptyInput) (*mcp.CallToolResult, PortfolioSnapshotOutput, error) {
 		properties, err := client.ListProperties(ctx)
@@ -117,6 +131,10 @@ func main() {
 			return nil, PortfolioSnapshotOutput{}, err
 		}
 		notificationsList, err := client.ListNotifications(ctx)
+		if err != nil {
+			return nil, PortfolioSnapshotOutput{}, err
+		}
+		actions, err := client.ListAgentActions(ctx)
 		if err != nil {
 			return nil, PortfolioSnapshotOutput{}, err
 		}
@@ -144,6 +162,11 @@ func main() {
 		for _, item := range notificationsList {
 			if item.Status == "pending" || item.Status == "retry" || item.Status == "processing" {
 				out.QueuedNotifications++
+			}
+		}
+		for _, action := range actions {
+			if action.Status == "proposed" {
+				out.PendingAgentActions++
 			}
 		}
 		return nil, out, nil
@@ -213,6 +236,22 @@ func main() {
 		return nil, out, nil
 	})
 
+	mcp.AddTool(server, &mcp.Tool{Name: "list_maintenance_quotes", Description: "List maintenance quotes so an agent can compare submitted options before proposing a human approval. Read-only."}, func(ctx context.Context, _ *mcp.CallToolRequest, _ EmptyInput) (*mcp.CallToolResult, QuoteOutput, error) {
+		items, err := client.ListMaintenanceQuotes(ctx)
+		if err != nil {
+			return nil, QuoteOutput{}, err
+		}
+		return nil, QuoteOutput{Items: items}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{Name: "list_agent_action_requests", Description: "List agent-originated action proposals and their human review state. Read-only; this tool cannot approve a proposal."}, func(ctx context.Context, _ *mcp.CallToolRequest, _ EmptyInput) (*mcp.CallToolResult, AgentActionOutput, error) {
+		items, err := client.ListAgentActions(ctx)
+		if err != nil {
+			return nil, AgentActionOutput{}, err
+		}
+		return nil, AgentActionOutput{Items: items}, nil
+	})
+
 	mcp.AddTool(server, &mcp.Tool{Name: "queue_rent_reminder", Description: "Mutating action. Queue a server-authored reminder for an outstanding rent obligation. The API validates the obligation, derives the balance/due date, enforces RBAC, and deduplicates same-day reminders."}, func(ctx context.Context, _ *mcp.CallToolRequest, input RentReminderInput) (*mcp.CallToolResult, MutationOutput, error) {
 		item, err := client.QueueRentReminder(ctx, notifications.RentReminderInput{ObligationID: input.ObligationID, Channel: input.Channel, Recipient: input.Recipient})
 		if err != nil {
@@ -227,6 +266,14 @@ func main() {
 			return nil, MutationOutput{}, err
 		}
 		return nil, MutationOutput{ID: item.ID, Status: item.Status, Message: fmt.Sprintf("maintenance request created: %s", item.Title)}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{Name: "propose_maintenance_quote_approval", Description: "High-risk proposal only. Ask a human to approve a submitted maintenance quote. This tool never approves or executes the quote itself; a manager/accountant must review the proposal in Property OS."}, func(ctx context.Context, _ *mcp.CallToolRequest, input QuoteApprovalProposalInput) (*mcp.CallToolResult, MutationOutput, error) {
+		item, err := client.ProposeMaintenanceQuoteApproval(ctx, agentactions.ProposeQuoteApprovalInput{QuoteID: input.QuoteID, Reasoning: input.Reasoning})
+		if err != nil {
+			return nil, MutationOutput{}, err
+		}
+		return nil, MutationOutput{ID: item.ID, Status: item.Status, Message: "maintenance quote approval proposed for human review"}, nil
 	})
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
