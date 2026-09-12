@@ -61,12 +61,49 @@ type RentReminderContext struct {
 	State        string
 }
 
+type PushDevice struct {
+	ID             string    `json:"id"`
+	OrganizationID string    `json:"organizationId"`
+	UserID         string    `json:"userId"`
+	ExpoPushToken  string    `json:"expoPushToken"`
+	Platform       string    `json:"platform"`
+	DeviceName     string    `json:"deviceName,omitempty"`
+	AppVersion     string    `json:"appVersion,omitempty"`
+	LastSeenAt     time.Time `json:"lastSeenAt"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
+type RegisterPushDeviceInput struct {
+	ExpoPushToken string `json:"expoPushToken"`
+	Platform      string `json:"platform"`
+	DeviceName    string `json:"deviceName"`
+	AppVersion    string `json:"appVersion"`
+}
+
+type PushToUserInput struct {
+	UserID         string          `json:"userId"`
+	Topic          string          `json:"topic"`
+	Subject        string          `json:"subject"`
+	Body           string          `json:"body"`
+	Payload        json.RawMessage `json:"payload"`
+	ResourceType   string          `json:"resourceType"`
+	ResourceID     string          `json:"resourceId"`
+	IdempotencyKey string          `json:"idempotencyKey"`
+}
+
 var (
-	ErrInvalidChannel            = errors.New("notification channel must be email, sms, whatsapp, or webhook")
+	ErrInvalidChannel            = errors.New("notification channel must be email, sms, whatsapp, webhook, or push")
 	ErrRecipientRequired         = errors.New("notification recipient is required")
 	ErrTopicRequired             = errors.New("notification topic is required")
 	ErrBodyRequired              = errors.New("notification body is required")
 	ErrResourcePairRequired      = errors.New("resourceType and resourceId must be supplied together")
 	ErrObligationNotFound        = errors.New("rent obligation not found")
 	ErrRentReminderNotApplicable = errors.New("rent reminder is not applicable to a paid or void obligation")
+	ErrPushDevicesUnavailable    = errors.New("push device storage is unavailable")
+	ErrPushDeviceNotFound        = errors.New("push device not found")
+	ErrInvalidPushToken          = errors.New("invalid Expo push token")
+	ErrInvalidPushPlatform       = errors.New("push device platform must be ios or android")
+	ErrPushUserRequired          = errors.New("push target userId is required")
+	ErrPushRecipientUnavailable  = errors.New("target user has no registered push devices")
 )

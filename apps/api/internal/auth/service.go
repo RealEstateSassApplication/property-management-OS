@@ -28,17 +28,17 @@ func roleAllows(role string, permission Permission) bool {
 	case "manager":
 		return permission != ManageMembers && permission != ManageAccounting
 	case "accountant":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewAccounting || permission == ManageAccounting || permission == ViewInspections || permission == ViewMaintenance || permission == ApproveMaintenanceCosts || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == DecideAgentActions || permission == ViewReporting || permission == ViewAudit
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ManageRent || permission == ViewAccounting || permission == ManageAccounting || permission == ViewInspections || permission == ViewMaintenance || permission == ApproveMaintenanceCosts || permission == ViewNotifications || permission == ManageOwnPushDevices || permission == SendRentReminders || permission == ViewAgentActions || permission == DecideAgentActions || permission == ViewReporting || permission == ViewAudit
 	case "viewer":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ViewInspections || permission == ViewMaintenance || permission == ViewReporting
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewOwners || permission == ViewRent || permission == ViewInspections || permission == ViewMaintenance || permission == ViewReporting || permission == ManageOwnPushDevices
 	case "maintenance":
-		return permission == ViewPortfolio || permission == ViewInspections || permission == ManageInspections || permission == AcknowledgeInspections || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ManageMaintenance || permission == ProposeAgentActions
+		return permission == ViewPortfolio || permission == ViewInspections || permission == ManageInspections || permission == AcknowledgeInspections || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ManageMaintenance || permission == ProposeAgentActions || permission == ManageOwnPushDevices
 	case "agent":
-		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewRent || permission == ViewInspections || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == ProposeAgentActions
+		return permission == ViewPortfolio || permission == ViewPeople || permission == ViewLeases || permission == ViewRent || permission == ViewInspections || permission == ViewMaintenance || permission == CreateMaintenanceRequests || permission == ViewNotifications || permission == SendRentReminders || permission == ViewAgentActions || permission == ProposeAgentActions || permission == ManageOwnPushDevices
 	case "owner":
-		return permission == ViewOwnerPortal
+		return permission == ViewOwnerPortal || permission == ManageOwnPushDevices
 	case "tenant":
-		return permission == ViewTenantPortal || permission == CreateTenantPortalRequest
+		return permission == ViewTenantPortal || permission == CreateTenantPortalRequest || permission == ManageOwnPushDevices
 	default:
 		return false
 	}

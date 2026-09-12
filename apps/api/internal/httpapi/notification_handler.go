@@ -35,6 +35,68 @@ func (h notificationHandler) enqueue(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{"data": item})
 }
 
+func (h notificationHandler) registerPushDevice(w http.ResponseWriter, r *http.Request) {
+	var input notifications.RegisterPushDeviceInput
+	if err := decodeJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
+		return
+	}
+	organizationID, _ := organizationIDFromContext(r.Context())
+	userID, _ := userIDFromContext(r.Context())
+	item, err := h.service.RegisterPushDevice(r.Context(), organizationID, userID, input)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "push_device_invalid", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"data": item})
+}
+
+func (h notificationHandler) listPushDevices(w http.ResponseWriter, r *http.Request) {
+	organizationID, _ := organizationIDFromContext(r.Context())
+	userID, _ := userIDFromContext(r.Context())
+	items, err := h.service.ListPushDevices(r.Context(), organizationID, userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "push_devices_list_failed", "could not load push devices")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+}
+
+func (h notificationHandler) deletePushDevice(w http.ResponseWriter, r *http.Request) {
+	organizationID, _ := organizationIDFromContext(r.Context())
+	userID, _ := userIDFromContext(r.Context())
+	err := h.service.DeletePushDevice(r.Context(), organizationID, userID, r.PathValue("deviceID"))
+	if errors.Is(err, notifications.ErrPushDeviceNotFound) {
+		writeError(w, http.StatusNotFound, "push_device_not_found", err.Error())
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "push_device_delete_failed", err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h notificationHandler) queuePushToUser(w http.ResponseWriter, r *http.Request) {
+	var input notifications.PushToUserInput
+	if err := decodeJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
+		return
+	}
+	organizationID, _ := organizationIDFromContext(r.Context())
+	userID, _ := userIDFromContext(r.Context())
+	items, err := h.service.QueuePushToUser(r.Context(), organizationID, userID, input)
+	if errors.Is(err, notifications.ErrPushRecipientUnavailable) {
+		writeError(w, http.StatusConflict, "push_recipient_unavailable", err.Error())
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "push_notification_invalid", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"data": items})
+}
+
 func (h notificationHandler) queueRentReminder(w http.ResponseWriter, r *http.Request) {
 	var input notifications.RentReminderInput
 	if err := decodeJSON(r, &input); err != nil {

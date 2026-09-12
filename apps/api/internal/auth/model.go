@@ -29,6 +29,7 @@ const (
 	ManageDocuments           Permission = "documents:manage"
 	ViewNotifications         Permission = "notifications:view"
 	ManageNotifications       Permission = "notifications:manage"
+	ManageOwnPushDevices      Permission = "notifications:push_devices:self"
 	SendRentReminders         Permission = "notifications:send_rent_reminders"
 	ViewAgentActions          Permission = "agent_actions:view"
 	ProposeAgentActions       Permission = "agent_actions:propose"
