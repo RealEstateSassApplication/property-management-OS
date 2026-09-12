@@ -33,25 +33,28 @@ func main() {
 	if providerName == "" {
 		providerName = "log"
 	}
-	var provider notifications.DeliveryProvider
+	var fallback notifications.DeliveryProvider
 	switch providerName {
 	case "log":
 		if cfg.Environment != "development" && cfg.Environment != "test" {
 			logger.Error("log notification provider is development-only", "required", "NOTIFICATION_PROVIDER=webhook")
 			os.Exit(1)
 		}
-		provider = notifications.NewLogProvider(logger)
+		fallback = notifications.NewLogProvider(logger)
 	case "webhook":
 		url := strings.TrimSpace(os.Getenv("NOTIFICATION_WEBHOOK_URL"))
 		if url == "" {
 			logger.Error("notification webhook URL is required")
 			os.Exit(1)
 		}
-		provider = notifications.NewWebhookProvider(url, os.Getenv("NOTIFICATION_WEBHOOK_TOKEN"))
+		fallback = notifications.NewWebhookProvider(url, os.Getenv("NOTIFICATION_WEBHOOK_TOKEN"))
 	default:
 		logger.Error("unsupported notification provider", "provider", providerName)
 		os.Exit(1)
 	}
+	provider := notifications.NewRoutingProvider(fallback, map[string]notifications.DeliveryProvider{
+		"push": notifications.NewExpoPushProvider(os.Getenv("EXPO_PUSH_ENDPOINT"), os.Getenv("EXPO_PUSH_ACCESS_TOKEN")),
+	})
 
 	poll := 5 * time.Second
 	if raw := strings.TrimSpace(os.Getenv("NOTIFICATION_POLL_INTERVAL")); raw != "" {
@@ -65,7 +68,7 @@ func main() {
 	host, _ := os.Hostname()
 	workerID := fmt.Sprintf("%s:%d", host, os.Getpid())
 	worker := notifications.NewWorker(notifications.NewPostgresRepository(pool), provider, logger, workerID)
-	logger.Info("notification worker starting", "workerId", workerID, "provider", providerName, "pollInterval", poll)
+	logger.Info("notification worker starting", "workerId", workerID, "provider", providerName, "pushProvider", "expo", "pollInterval", poll)
 	if err := worker.Run(ctx, poll); err != nil && ctx.Err() == nil {
 		logger.Error("notification worker stopped unexpectedly", "error", err)
 		os.Exit(1)

@@ -44,6 +44,46 @@ func (r *PostgresRepository) Enqueue(ctx context.Context, organizationID, actorU
 	return scanNotification(r.pool.QueryRow(ctx, `SELECT id, organization_id, COALESCE(actor_user_id::text,''), topic, channel, recipient, COALESCE(subject,''), body, payload, COALESCE(resource_type,''), COALESCE(resource_id::text,''), COALESCE(idempotency_key,''), status, attempt_count, max_attempts, available_at, locked_at, COALESCE(locked_by,''), COALESCE(last_error,''), delivered_at, created_at, updated_at FROM notification_outbox WHERE organization_id=$1 AND idempotency_key=$2`, organizationID, input.IdempotencyKey))
 }
 
+func (r *PostgresRepository) RegisterPushDevice(ctx context.Context, organizationID, userID string, input RegisterPushDeviceInput) (PushDevice, error) {
+	row := r.pool.QueryRow(ctx, `
+		INSERT INTO push_devices (organization_id, user_id, expo_push_token, platform, device_name, app_version)
+		VALUES ($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''))
+		ON CONFLICT (organization_id, expo_push_token) DO UPDATE SET
+			user_id=EXCLUDED.user_id, platform=EXCLUDED.platform, device_name=EXCLUDED.device_name,
+			app_version=EXCLUDED.app_version, last_seen_at=now(), updated_at=now()
+		RETURNING id, organization_id, user_id, expo_push_token, platform, COALESCE(device_name,''), COALESCE(app_version,''), last_seen_at, created_at, updated_at
+	`, organizationID, userID, input.ExpoPushToken, input.Platform, input.DeviceName, input.AppVersion)
+	return scanPushDevice(row)
+}
+
+func (r *PostgresRepository) ListPushDevices(ctx context.Context, organizationID, userID string) ([]PushDevice, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, organization_id, user_id, expo_push_token, platform, COALESCE(device_name,''), COALESCE(app_version,''), last_seen_at, created_at, updated_at FROM push_devices WHERE organization_id=$1 AND user_id=$2 ORDER BY last_seen_at DESC`, organizationID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]PushDevice, 0)
+	for rows.Next() {
+		item, err := scanPushDevice(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (r *PostgresRepository) DeletePushDevice(ctx context.Context, organizationID, userID, deviceID string) error {
+	result, err := r.pool.Exec(ctx, `DELETE FROM push_devices WHERE organization_id=$1 AND user_id=$2 AND id=$3`, organizationID, userID, deviceID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return ErrPushDeviceNotFound
+	}
+	return nil
+}
+
 func (r *PostgresRepository) GetRentReminderContext(ctx context.Context, organizationID, obligationID string) (RentReminderContext, error) {
 	var item RentReminderContext
 	err := r.pool.QueryRow(ctx, `SELECT ro.id, t.legal_name, p.name, u.label, ro.period, ro.due_date::text, ro.amount_minor-COALESCE(SUM(pa.amount_minor),0), ro.currency, CASE WHEN ro.state='void' THEN 'void' WHEN ro.amount_minor-COALESCE(SUM(pa.amount_minor),0)<=0 THEN 'paid' WHEN ro.due_date<CURRENT_DATE THEN 'overdue' ELSE 'open' END FROM rent_obligations ro JOIN leases l ON l.id=ro.lease_id AND l.organization_id=ro.organization_id JOIN tenancies tn ON tn.id=l.tenancy_id AND tn.organization_id=l.organization_id JOIN tenants t ON t.id=tn.primary_tenant_id AND t.organization_id=tn.organization_id JOIN units u ON u.id=tn.unit_id AND u.organization_id=tn.organization_id JOIN properties p ON p.id=u.property_id AND p.organization_id=u.organization_id LEFT JOIN payment_allocations pa ON pa.obligation_id=ro.id AND pa.organization_id=ro.organization_id WHERE ro.organization_id=$1 AND ro.id=$2 GROUP BY ro.id,t.legal_name,p.name,u.label,ro.period,ro.due_date,ro.amount_minor,ro.currency,ro.state`, organizationID, obligationID).Scan(&item.ObligationID, &item.TenantName, &item.PropertyName, &item.UnitLabel, &item.Period, &item.DueDate, &item.BalanceMinor, &item.Currency, &item.State)
@@ -89,5 +129,11 @@ type rowScanner interface{ Scan(dest ...any) error }
 func scanNotification(row rowScanner) (Notification, error) {
 	var item Notification
 	err := row.Scan(&item.ID, &item.OrganizationID, &item.ActorUserID, &item.Topic, &item.Channel, &item.Recipient, &item.Subject, &item.Body, &item.Payload, &item.ResourceType, &item.ResourceID, &item.IdempotencyKey, &item.Status, &item.AttemptCount, &item.MaxAttempts, &item.AvailableAt, &item.LockedAt, &item.LockedBy, &item.LastError, &item.DeliveredAt, &item.CreatedAt, &item.UpdatedAt)
+	return item, err
+}
+
+func scanPushDevice(row rowScanner) (PushDevice, error) {
+	var item PushDevice
+	err := row.Scan(&item.ID, &item.OrganizationID, &item.UserID, &item.ExpoPushToken, &item.Platform, &item.DeviceName, &item.AppVersion, &item.LastSeenAt, &item.CreatedAt, &item.UpdatedAt)
 	return item, err
 }
