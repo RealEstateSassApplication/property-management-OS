@@ -155,6 +155,10 @@ func (r *Router) routes(deps Dependencies) {
 		h := notificationHandler{service: deps.Notifications}
 		r.mux.Handle("GET /api/v1/notifications", protect(auth.ViewNotifications, h.list))
 		r.mux.Handle("POST /api/v1/notifications", protect(auth.ManageNotifications, h.enqueue))
+		r.mux.Handle("POST /api/v1/notifications/push", protect(auth.ManageNotifications, h.queuePushToUser))
+		r.mux.Handle("GET /api/v1/push-devices", protect(auth.ManageOwnPushDevices, h.listPushDevices))
+		r.mux.Handle("POST /api/v1/push-devices", protect(auth.ManageOwnPushDevices, h.registerPushDevice))
+		r.mux.Handle("DELETE /api/v1/push-devices/{deviceID}", protect(auth.ManageOwnPushDevices, h.deletePushDevice))
 		r.mux.Handle("POST /api/v1/notifications/rent-reminders", protect(auth.SendRentReminders, h.queueRentReminder))
 	}
 	if deps.AgentActions != nil {
