@@ -64,7 +64,7 @@ func TestPreviewRejectsMoreThanFiveHundred(t *testing.T) {
 func TestPreviewLimitsPreviewRows(t *testing.T) {
 	var b strings.Builder
 	b.WriteString(header)
-	for i := 0; i < 40; i++ { b.WriteString("P-,Home,house,Address,Colombo,West,LK,\n") }
+	for i := 0; i < 40; i++ { b.WriteString(",Home,house,Address,Colombo,West,LK,\n") }
 	got, err := PreviewPropertiesCSV(strings.NewReader(b.String()))
 	if err != nil { t.Fatal(err) }
 	if got.ReadyRows != 40 || len(got.PreviewRows) != MaxPreviewRows { t.Fatalf("preview truncation wrong: %+v", got) }
