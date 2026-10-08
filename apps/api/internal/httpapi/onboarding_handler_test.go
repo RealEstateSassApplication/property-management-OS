@@ -26,41 +26,59 @@ func TestPortfolioPreviewProtectedAndReadOnly(t *testing.T) {
 	handler := NewRouter(Dependencies{Authorization: authorized, AllowDevelopmentIdentity: true})
 	result := httptest.NewRecorder()
 	handler.ServeHTTP(result, previewRequest(testPortfolioCSV))
-	if result.Code != http.StatusOK { t.Fatalf("expected 200, got %d: %s", result.Code, result.Body.String()) }
-	var payload struct { Data onboarding.Report `json:"data"` }
-	if err := json.Unmarshal(result.Body.Bytes(), &payload); err != nil { t.Fatal(err) }
-	if payload.Data.ReadyRows != 1 || !payload.Data.CanImport { t.Fatalf("unexpected preview: %+v", payload.Data) }
+	if result.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", result.Code, result.Body.String())
+	}
+	var payload struct {
+		Data onboarding.Report `json:"data"`
+	}
+	if err := json.Unmarshal(result.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Data.ReadyRows != 1 || !payload.Data.CanImport {
+		t.Fatalf("unexpected preview: %+v", payload.Data)
+	}
 
 	viewer := auth.NewService(fakeAuthRepository{membership: auth.Membership{Role: "viewer"}})
 	viewerResult := httptest.NewRecorder()
 	NewRouter(Dependencies{Authorization: viewer, AllowDevelopmentIdentity: true}).ServeHTTP(viewerResult, previewRequest(testPortfolioCSV))
-	if viewerResult.Code != http.StatusForbidden { t.Fatalf("viewer should not preview import, got %d", viewerResult.Code) }
+	if viewerResult.Code != http.StatusForbidden {
+		t.Fatalf("viewer should not preview import, got %d", viewerResult.Code)
+	}
 
 	missingOrganization := previewRequest(testPortfolioCSV)
 	missingOrganization.Header.Del("X-Organization-ID")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, missingOrganization)
-	if response.Code != http.StatusBadRequest { t.Fatalf("missing organization header should fail, got %d", response.Code) }
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("missing organization header should fail, got %d", response.Code)
+	}
 }
 
 func TestPortfolioPreviewRejectsOversizedAndInvalidContent(t *testing.T) {
 	handler := NewRouter(Dependencies{
-		Authorization: auth.NewService(fakeAuthRepository{membership: auth.Membership{Role: "admin"}}),
+		Authorization:            auth.NewService(fakeAuthRepository{membership: auth.Membership{Role: "admin"}}),
 		AllowDevelopmentIdentity: true,
 	})
 	tooLarge := httptest.NewRecorder()
 	handler.ServeHTTP(tooLarge, previewRequest(strings.Repeat("x", maxPortfolioCSVBytes+1)))
-	if tooLarge.Code != http.StatusRequestEntityTooLarge { t.Fatalf("expected 413, got %d", tooLarge.Code) }
+	if tooLarge.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected 413, got %d", tooLarge.Code)
+	}
 
 	invalidType := previewRequest(testPortfolioCSV)
 	invalidType.Header.Set("Content-Type", "application/json")
 	invalidResult := httptest.NewRecorder()
 	handler.ServeHTTP(invalidResult, invalidType)
-	if invalidResult.Code != http.StatusUnsupportedMediaType { t.Fatalf("expected 415, got %d", invalidResult.Code) }
+	if invalidResult.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("expected 415, got %d", invalidResult.Code)
+	}
 
 	badCSV := httptest.NewRecorder()
 	handler.ServeHTTP(badCSV, previewRequest("name,propertyType\nHome,house\n"))
-	if badCSV.Code != http.StatusBadRequest { t.Fatalf("expected 400, got %d", badCSV.Code) }
+	if badCSV.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", badCSV.Code)
+	}
 }
 
 func TestPortfolioPreviewNotAvailableWithoutAuth(t *testing.T) {
@@ -68,5 +86,7 @@ func TestPortfolioPreviewNotAvailableWithoutAuth(t *testing.T) {
 	request.Header.Del("X-User-ID")
 	response := httptest.NewRecorder()
 	NewRouter(Dependencies{Authorization: auth.NewService(fakeAuthRepository{membership: auth.Membership{Role: "admin"}}), AllowDevelopmentIdentity: false}).ServeHTTP(response, request)
-	if response.Code != http.StatusUnauthorized { t.Fatalf("expected 401, got %d", response.Code) }
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", response.Code)
+	}
 }
