@@ -20,7 +20,7 @@ func previewPropertyCSV(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnsupportedMediaType, "csv_required", "send a text/csv file")
 		return
 	}
-	data, err := io.ReadAll(io.LimitReader(r.Body, maxPortfolioCSVBytes + 1))
+	data, err := io.ReadAll(io.LimitReader(r.Body, maxPortfolioCSVBytes+1))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "csv_read_failed", "could not read CSV")
 		return
