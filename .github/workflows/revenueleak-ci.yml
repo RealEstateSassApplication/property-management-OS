@@ -1,0 +1,24 @@
+name: RevenueLeak OS pilot
+on:
+  push:
+    paths:
+      - 'experiments/revenueleak-os/**'
+      - '.github/workflows/revenueleak-ci.yml'
+  pull_request:
+    paths:
+      - 'experiments/revenueleak-os/**'
+      - '.github/workflows/revenueleak-ci.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: experiments/revenueleak-os
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: experiments/revenueleak-os/go.mod
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: go build ./cmd/server
