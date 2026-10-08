@@ -10,43 +10,43 @@ import (
 )
 
 const (
-	MaxProperties = 500
+	MaxProperties  = 500
 	MaxPreviewRows = 30
 )
 
 var (
-	ErrInvalidHeader = errors.New("invalid property CSV header")
-	ErrInvalidCSV = errors.New("invalid property CSV")
+	ErrInvalidHeader     = errors.New("invalid property CSV header")
+	ErrInvalidCSV        = errors.New("invalid property CSV")
 	ErrTooManyProperties = errors.New("CSV exceeds 500 property rows")
-	ErrNoProperties = errors.New("CSV contains no property rows")
+	ErrNoProperties      = errors.New("CSV contains no property rows")
 )
 
 type Issue struct {
-	Row int `json:"row"`
-	Field string `json:"field"`
-	Code string `json:"code"`
+	Row     int    `json:"row"`
+	Field   string `json:"field"`
+	Code    string `json:"code"`
 	Message string `json:"message"`
 }
 
 type PropertyRow struct {
-	Row int `json:"row"`
-	ReferenceCode string `json:"referenceCode,omitempty"`
-	Name string `json:"name"`
-	PropertyType string `json:"propertyType"`
-	AddressLine1 string `json:"addressLine1"`
-	City string `json:"city"`
-	Region string `json:"region,omitempty"`
-	CountryCode string `json:"countryCode"`
+	Row                     int    `json:"row"`
+	ReferenceCode           string `json:"referenceCode,omitempty"`
+	Name                    string `json:"name"`
+	PropertyType            string `json:"propertyType"`
+	AddressLine1            string `json:"addressLine1"`
+	City                    string `json:"city"`
+	Region                  string `json:"region,omitempty"`
+	CountryCode             string `json:"countryCode"`
 	ExternalAvaraPropertyID string `json:"externalAvaraPropertyId,omitempty"`
 }
 
 type Report struct {
-	TotalRows int `json:"totalRows"`
-	ReadyRows int `json:"readyRows"`
-	InvalidRows int `json:"invalidRows"`
+	TotalRows   int           `json:"totalRows"`
+	ReadyRows   int           `json:"readyRows"`
+	InvalidRows int           `json:"invalidRows"`
 	PreviewRows []PropertyRow `json:"previewRows"`
-	Issues []Issue `json:"issues"`
-	CanImport bool `json:"canImport"`
+	Issues      []Issue       `json:"issues"`
+	CanImport   bool          `json:"canImport"`
 }
 
 // PreviewPropertiesCSV validates a spreadsheet-exported CSV without writing data.
@@ -93,10 +93,16 @@ func PreviewPropertiesCSV(input io.Reader) (Report, error) {
 	avaraIDs := make(map[string]int)
 	for {
 		record, readErr := reader.Read()
-		if errors.Is(readErr, io.EOF) { break }
-		if readErr != nil { return Report{}, fmt.Errorf("%w: malformed row: %v", ErrInvalidCSV, readErr) }
+		if errors.Is(readErr, io.EOF) {
+			break
+		}
+		if readErr != nil {
+			return Report{}, fmt.Errorf("%w: malformed row: %v", ErrInvalidCSV, readErr)
+		}
 		result.TotalRows++
-		if result.TotalRows > MaxProperties { return Report{}, ErrTooManyProperties }
+		if result.TotalRows > MaxProperties {
+			return Report{}, ErrTooManyProperties
+		}
 		row := result.TotalRows + 1
 		if len(record) != len(header) {
 			result.Issues = append(result.Issues, Issue{row, "", "column_count", "Column count differs from CSV header"})
@@ -104,14 +110,14 @@ func PreviewPropertiesCSV(input io.Reader) (Report, error) {
 			continue
 		}
 		entry := PropertyRow{
-			Row: row,
-			ReferenceCode: get(record, "referencecode"),
-			Name: get(record, "name"),
-			PropertyType: strings.ToLower(get(record, "propertytype")),
-			AddressLine1: get(record, "addressline1"),
-			City: get(record, "city"),
-			Region: get(record, "region"),
-			CountryCode: strings.ToUpper(get(record, "countrycode")),
+			Row:                     row,
+			ReferenceCode:           get(record, "referencecode"),
+			Name:                    get(record, "name"),
+			PropertyType:            strings.ToLower(get(record, "propertytype")),
+			AddressLine1:            get(record, "addressline1"),
+			City:                    get(record, "city"),
+			Region:                  get(record, "region"),
+			CountryCode:             strings.ToUpper(get(record, "countrycode")),
 			ExternalAvaraPropertyID: get(record, "externalavarapropertyid"),
 		}
 		issuesBefore := len(result.Issues)
@@ -143,30 +149,42 @@ func PreviewPropertiesCSV(input io.Reader) (Report, error) {
 		if entry.CountryCode != "" {
 			valid := len(entry.CountryCode) == 2
 			for _, c := range entry.CountryCode {
-				if c < 'A' || c > 'Z' { valid = false }
+				if c < 'A' || c > 'Z' {
+					valid = false
+				}
 			}
-			if !valid { result.Issues = append(result.Issues, Issue{row, "countryCode", "invalid_country", "Use a two-letter ISO country code, for example LK"}) }
+			if !valid {
+				result.Issues = append(result.Issues, Issue{row, "countryCode", "invalid_country", "Use a two-letter ISO country code, for example LK"})
+			}
 		}
 		if entry.ReferenceCode != "" {
 			key := strings.ToLower(entry.ReferenceCode)
 			if first, exists := references[key]; exists {
 				result.Issues = append(result.Issues, Issue{row, "referenceCode", "duplicate_reference", fmt.Sprintf("Reference code also occurs on row %d", first)})
-			} else { references[key] = row }
+			} else {
+				references[key] = row
+			}
 		}
 		if entry.ExternalAvaraPropertyID != "" {
 			key := strings.ToLower(entry.ExternalAvaraPropertyID)
 			if first, exists := avaraIDs[key]; exists {
 				result.Issues = append(result.Issues, Issue{row, "externalAvaraPropertyId", "duplicate_avara_id", fmt.Sprintf("Avara property ID also occurs on row %d", first)})
-			} else { avaraIDs[key] = row }
+			} else {
+				avaraIDs[key] = row
+			}
 		}
 		if len(result.Issues) == issuesBefore {
 			result.ReadyRows++
-			if len(result.PreviewRows) < MaxPreviewRows { result.PreviewRows = append(result.PreviewRows, entry) }
+			if len(result.PreviewRows) < MaxPreviewRows {
+				result.PreviewRows = append(result.PreviewRows, entry)
+			}
 		} else {
 			result.InvalidRows++
 		}
 	}
-	if result.TotalRows == 0 { return Report{}, ErrNoProperties }
+	if result.TotalRows == 0 {
+		return Report{}, ErrNoProperties
+	}
 	result.CanImport = result.InvalidRows == 0
 	return result, nil
 }
