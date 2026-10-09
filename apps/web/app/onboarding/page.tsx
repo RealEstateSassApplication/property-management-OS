@@ -91,7 +91,7 @@ export default function OnboardingPage() {
             <p>Types: house, apartment, building, commercial, land, other.</p>
             <p>Use a two-letter country code like LK. Reference codes and Avara property IDs must be unique within the file.</p>
             <p><strong>Privacy:</strong> The CSV is analyzed for this request and is not saved as an import job. No data is created or overwritten.</p>
-            <p>Review the strategy and phased production requirements in <code>docs/product-strategy-and-roadmap.md</code>.</p>
+            <p>This step validates the file only. Approved imports and reconciliation will be available in a later release.</p>
           </div>
         </aside>
       </section>

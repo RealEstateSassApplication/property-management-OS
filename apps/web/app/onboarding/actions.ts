@@ -1,5 +1,8 @@
 "use server";
 
+import { APIIdentityError } from "../lib/api-identity";
+import { apiRequestHeaders } from "../lib/request-identity";
+
 export type PreviewIssue = {
   row: number;
   field: string;
@@ -47,21 +50,10 @@ export async function previewPropertyCSV(_previous: PreflightState, formData: Fo
   if (!file.name.toLowerCase().endsWith(".csv")) {
     return { status: "error", message: "Only .csv files are supported. Export your spreadsheet as CSV first." };
   }
-  const organizationId = process.env.PROPERTY_OS_ORGANIZATION_ID;
-  const accessToken = process.env.PROPERTY_OS_ACCESS_TOKEN;
-  const developmentUserId = process.env.PROPERTY_OS_USER_ID;
-  if (!organizationId || (!accessToken && !developmentUserId)) {
-    return { status: "error", message: "Property OS authentication is not configured." };
-  }
-
   try {
     const response = await fetch(`${process.env.API_BASE_URL ?? "http://localhost:8080"}/api/v1/onboarding/properties/preview`, {
       method: "POST",
-      headers: {
-        "Content-Type": "text/csv",
-        "X-Organization-ID": organizationId,
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : { "X-User-ID": developmentUserId as string }),
-      },
+      headers: { ...await apiRequestHeaders(), "Content-Type": "text/csv" },
       body: await file.arrayBuffer(),
       cache: "no-store",
     });
@@ -77,7 +69,8 @@ export async function previewPropertyCSV(_previous: PreflightState, formData: Fo
         : "Some rows need corrections. Nothing has been imported.",
       report: result.data,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof APIIdentityError) return { status: "error", message: error.message };
     return { status: "error", message: "Cannot reach Property OS. Check the backend and try again." };
   }
 }

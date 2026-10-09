@@ -78,3 +78,11 @@ After restore, apply any migrations newer than the backup and run the CI/databas
 Every API response includes `X-Request-ID`. A valid incoming request ID is preserved so ingress/proxy logs can correlate with application logs; otherwise the API generates one. Structured access logs include request ID, method, path, status, response bytes, duration and remote IP. Query strings and request bodies are intentionally excluded from access logs.
 
 Production ingress should preserve/forward `X-Request-ID`, redact authorization headers and secrets, enforce TLS/rate limits and export logs to the central telemetry platform.
+
+## Web authentication boundary
+
+The production Compose topology explicitly sets `APP_ENV=production` for the web and API; set it likewise for other deployment topologies. Production web requests must include the current user's `Authorization: Bearer <OIDC access token>`, forwarded by an authenticated ingress/OIDC gateway. Use a token issued for the API audience. The web passes it to the API, which verifies its issuer, audience, expiry, internal identity mapping and organization membership. An incoming `X-Organization-ID` selects the scope; otherwise the configured organization is used. Neither header grants membership.
+
+Missing or malformed credentials fail closed. `PROPERTY_OS_ACCESS_TOKEN`, `PROPERTY_OS_USER_ID` and portal user environment variables are only web fallbacks when `APP_ENV` is explicitly `development` or `test` (or the Next runtime is development/test with no APP_ENV override). A production build can be exercised locally with `APP_ENV=test`; never use that setting on a public deployment. MCP has its own separately configured token.
+
+The core portfolio, documents, accounting, portals, notifications, inspections, approvals and onboarding clients use this same request identity path. Do not expose a development web instance publicly. Native browser OIDC login, refresh/logout and organization-switching UI are still productization work; this change supports an authenticated gateway deployment, not a built-in login screen. Before launch, verify a real OIDC gateway flow and role/organization isolation in staging.

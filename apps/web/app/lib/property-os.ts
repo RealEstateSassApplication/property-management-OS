@@ -1,3 +1,5 @@
+import { apiRequestHeaders } from "./request-identity";
+
 export type Property = {
   id: string;
   organizationId: string;
@@ -226,31 +228,24 @@ export type MaintenanceEvidence = {
 };
 
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:8080";
-const organizationId = process.env.PROPERTY_OS_ORGANIZATION_ID;
-const userId = process.env.PROPERTY_OS_USER_ID;
 
 export class PropertyOSConfigurationError extends Error {}
 
-function headers(extra?: HeadersInit): HeadersInit {
-  if (!organizationId || !userId) {
-    throw new PropertyOSConfigurationError(
-      "Set PROPERTY_OS_ORGANIZATION_ID and PROPERTY_OS_USER_ID for local development.",
-    );
+async function headers(extra?: HeadersInit): Promise<Record<string, string>> {
+  try {
+    const identity = await apiRequestHeaders();
+    const result = new Headers(extra);
+    for (const [key, value] of Object.entries(identity)) result.set(key, value);
+    return Object.fromEntries(result.entries());
+  } catch (error) {
+    throw new PropertyOSConfigurationError(error instanceof Error ? error.message : "Property OS authentication is not configured.");
   }
-
-  return {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    "X-Organization-ID": organizationId,
-    "X-User-ID": userId,
-    ...extra,
-  };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
-    headers: headers(init?.headers),
+    headers: await headers(init?.headers),
     cache: "no-store",
   });
 

@@ -147,6 +147,8 @@ jobs:
           package-manager-cache: false
       - name: Install dependencies
         run: npm install
+      - name: Test web authentication boundary
+        run: npm run test:web
       - name: Lint
         run: npm run lint:web
       - name: Build
