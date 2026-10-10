@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Property OS Migration Preflight
+  version: 0.1.0
+  description: Read-only property CSV preflight. No import or write endpoint is included.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/onboarding/properties/preview:
+    post:
+      summary: Preview property CSV without persisting any records
+      description: Requires an authenticated organization member with portfolio:manage permission.
+      parameters:
+        - in: header
+          name: X-Organization-ID
+          required: true
+          schema: { type: string }
+      security:
+        - oidcBearer: []
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+              maxLength: 524288
+      responses:
+        '200':
+          description: Row-level preflight report; ready does not mean imported
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Report'
+        '400': { description: Invalid headers, malformed CSV or empty CSV }
+        '401': { description: Authentication required }
+        '403': { description: Missing portfolio:manage permission or organization membership }
+        '413': { description: File over 512 KiB or more than 500 rows }
+        '415': { description: CSV content type required }
+components:
+  securitySchemes:
+    oidcBearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Report:
+      type: object
+      required: [totalRows, readyRows, invalidRows, previewRows, issues, canImport]
+      properties:
+        totalRows: { type: integer }
+        readyRows: { type: integer }
+        invalidRows: { type: integer }
+        previewRows:
+          type: array
+          maxItems: 30
+          items: { $ref: '#/components/schemas/PropertyRow' }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/Issue' }
+        canImport:
+          type: boolean
+          description: Passes file-level validation ONLY. Does not create or write data.
+    PropertyRow:
+      type: object
+      required: [row, name, propertyType, addressLine1, city, countryCode]
+      properties:
+        row: { type: integer }
+        referenceCode: { type: string }
+        name: { type: string }
+        propertyType: { type: string }
+        addressLine1: { type: string }
+        city: { type: string }
+        region: { type: string }
+        countryCode: { type: string }
+        externalAvaraPropertyId: { type: string }
+    Issue:
+      type: object
+      required: [row, field, code, message]
+      properties:
+        row: { type: integer }
+        field: { type: string }
+        code: { type: string }
+        message: { type: string }

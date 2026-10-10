@@ -61,6 +61,8 @@ func (r *Router) routes(deps Dependencies) {
 	protect := func(permission auth.Permission, handler http.HandlerFunc) http.Handler {
 		return requirePermissionWithAuthentication(deps.AllowDevelopmentIdentity, deps.Authentication, deps.Authorization, permission, handler)
 	}
+	// CSV preflight is intentionally read-only and requires portfolio-management permission.
+	r.mux.Handle("POST /api/v1/onboarding/properties/preview", protect(auth.ManagePortfolio, previewPropertyCSV))
 	if deps.Properties != nil {
 		h := propertyHandler{service: deps.Properties}
 		r.mux.Handle("GET /api/v1/properties", protect(auth.ViewPortfolio, h.list))

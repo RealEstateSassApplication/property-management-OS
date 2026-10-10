@@ -1,3 +1,5 @@
+import { apiRequestHeaders } from "./request-identity";
+
 export type NotificationRecord = {
   id: string;
   organizationId: string;
@@ -20,29 +22,21 @@ export type NotificationRecord = {
 };
 
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:8080";
-const organizationId = process.env.PROPERTY_OS_ORGANIZATION_ID;
-const userId = process.env.PROPERTY_OS_USER_ID;
-const accessToken = process.env.PROPERTY_OS_ACCESS_TOKEN;
 
 export class NotificationConfigurationError extends Error {}
 
-function headers(): HeadersInit {
-  if (!organizationId || (!accessToken && !userId)) {
-    throw new NotificationConfigurationError(
-      "Set PROPERTY_OS_ORGANIZATION_ID and either PROPERTY_OS_ACCESS_TOKEN or PROPERTY_OS_USER_ID.",
-    );
+async function headers(): Promise<Record<string, string>> {
+  try {
+    const identity = await apiRequestHeaders();
+    return identity;
+  } catch (error) {
+    throw new NotificationConfigurationError(error instanceof Error ? error.message : "Property OS authentication is not configured.");
   }
-  return {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    "X-Organization-ID": organizationId,
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : { "X-User-ID": userId as string }),
-  };
 }
 
 export async function listNotifications(): Promise<NotificationRecord[]> {
   const response = await fetch(`${apiBaseUrl}/api/v1/notifications`, {
-    headers: headers(),
+    headers: await headers(),
     cache: "no-store",
   });
   if (!response.ok) {

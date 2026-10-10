@@ -1,3 +1,5 @@
+import { apiRequestHeaders } from "./request-identity";
+
 export type OwnerPortalSummary = {
   owners: Array<{ id: string; legalName: string; ownerType: string; email?: string; phone?: string }>;
   properties: Array<{
@@ -65,35 +67,22 @@ export type TenantPortalSummary = {
 };
 
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:8080";
-const organizationId = process.env.PROPERTY_OS_ORGANIZATION_ID;
-const accessToken = process.env.PROPERTY_OS_ACCESS_TOKEN;
 
 export class PortalConfigurationError extends Error {}
 
-function headers(portal: "owner" | "tenant"): HeadersInit {
-  const fallbackUser =
-    portal === "owner"
-      ? process.env.PROPERTY_OS_OWNER_PORTAL_USER_ID
-      : process.env.PROPERTY_OS_TENANT_PORTAL_USER_ID;
-  const defaultUser = process.env.PROPERTY_OS_USER_ID;
-  const userId = fallbackUser ?? defaultUser;
-  if (!organizationId || (!accessToken && !userId)) {
-    throw new PortalConfigurationError(
-      `Set PROPERTY_OS_ORGANIZATION_ID and either PROPERTY_OS_ACCESS_TOKEN or a ${portal} portal development user ID.`,
-    );
+async function headers(portal: "owner" | "tenant"): Promise<Record<string, string>> {
+  try {
+    const identity = await apiRequestHeaders(portal);
+    return identity;
+  } catch (error) {
+    throw new PortalConfigurationError(error instanceof Error ? error.message : "Property OS authentication is not configured.");
   }
-  return {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    "X-Organization-ID": organizationId,
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : { "X-User-ID": userId as string }),
-  };
 }
 
 async function api<T>(path: string, portal: "owner" | "tenant", init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
-    headers: { ...headers(portal), ...(init?.headers ?? {}) },
+    headers: { ...await headers(portal), ...(init?.headers ?? {}) },
     cache: "no-store",
   });
   if (!response.ok) {

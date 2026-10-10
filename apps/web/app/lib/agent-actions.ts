@@ -1,3 +1,5 @@
+import { apiRequestHeaders } from "./request-identity";
+
 export type AgentActionRecord = {
   id: string;
   organizationId: string;
@@ -31,24 +33,16 @@ export type AgentActionRecord = {
 };
 
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:8080";
-const organizationId = process.env.PROPERTY_OS_ORGANIZATION_ID;
-const userId = process.env.PROPERTY_OS_USER_ID;
-const accessToken = process.env.PROPERTY_OS_ACCESS_TOKEN;
 
 export class AgentActionConfigurationError extends Error {}
 
-function headers(): HeadersInit {
-  if (!organizationId || (!accessToken && !userId)) {
-    throw new AgentActionConfigurationError(
-      "Set PROPERTY_OS_ORGANIZATION_ID and either PROPERTY_OS_ACCESS_TOKEN or PROPERTY_OS_USER_ID.",
-    );
+async function headers(): Promise<Record<string, string>> {
+  try {
+    const identity = await apiRequestHeaders();
+    return identity;
+  } catch (error) {
+    throw new AgentActionConfigurationError(error instanceof Error ? error.message : "Property OS authentication is not configured.");
   }
-  return {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    "X-Organization-ID": organizationId,
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : { "X-User-ID": userId as string }),
-  };
 }
 
 async function decode<T>(response: Response): Promise<T> {
@@ -61,7 +55,7 @@ async function decode<T>(response: Response): Promise<T> {
 
 export async function listAgentActions(): Promise<AgentActionRecord[]> {
   const response = await fetch(`${apiBaseUrl}/api/v1/agent-actions`, {
-    headers: headers(),
+    headers: await headers(),
     cache: "no-store",
   });
   return (await decode<{ data: AgentActionRecord[] }>(response)).data;
@@ -70,7 +64,7 @@ export async function listAgentActions(): Promise<AgentActionRecord[]> {
 export async function decideAgentAction(id: string, decision: "approve" | "reject", reason: string): Promise<AgentActionRecord> {
   const response = await fetch(`${apiBaseUrl}/api/v1/agent-actions/${encodeURIComponent(id)}/decision`, {
     method: "POST",
-    headers: headers(),
+    headers: await headers(),
     body: JSON.stringify({ decision, reason }),
     cache: "no-store",
   });

@@ -23,6 +23,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      APP_ENV: production
       API_ADDR: :8080
       DATABASE_URL: postgres://${POSTGRES_USER:-property_os}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-property_os}?sslmode=disable
     depends_on:
@@ -58,6 +59,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      APP_ENV: production
       API_BASE_URL: http://api:8080
       PROPERTY_OS_API_BASE_URL: http://api:8080
     depends_on:

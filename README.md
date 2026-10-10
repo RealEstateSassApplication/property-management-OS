@@ -2,6 +2,14 @@
 
 Property Management OS is a multi-tenant operational platform for rental property portfolios: properties and units, owners, tenants and occupancies, leases, rent, maintenance, documents, notifications, and agent-assisted operations.
 
+## Product strategy, Avara integration and roadmap
+
+Read [the Avara + Property OS competitive strategy and phased roadmap](docs/product-strategy-and-roadmap.md). It identifies the initial residential property-manager customer, the planned Owner Proofbook differentiation, release criteria, and the intended separation between Property OS financial records and the Avara marketplace.
+
+The first onboarding milestone is **read-only property CSV preflight**: open `/onboarding` in the web dashboard, use [the sample CSV](docs/samples/properties-onboarding.csv), and inspect the validation report. The authenticated `POST /api/v1/onboarding/properties/preview` API requires `portfolio:manage`, accepts `text/csv` (512 KiB / 500 rows maximum), and **does not import, store, create or update any data**. See [the API contract](contracts/onboarding.openapi.yaml). A reviewed and reconciled import workflow is planned, not yet implemented.
+
+**Production caveat:** Feature implementation and CI success do not substitute for security review, real-user permissions, financial reconciliation, provider staging tests, documented restore exercises and pilot acceptance. Follow [production readiness](docs/production-readiness.md) before using real customer data.
+
 ## Architecture
 
 ```text
