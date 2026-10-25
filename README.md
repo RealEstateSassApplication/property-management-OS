@@ -10,6 +10,20 @@ The first onboarding milestone is **read-only property CSV preflight**: open `/o
 
 **Production caveat:** Feature implementation and CI success do not substitute for security review, real-user permissions, financial reconciliation, provider staging tests, documented restore exercises and pilot acceptance. Follow [production readiness](docs/production-readiness.md) before using real customer data.
 
+## Engineering documentation and remaining work
+
+Start here for a code-grounded engineering handoff and product completion plan (audited against main 6df541f on 2026-10-25):
+
+- [Engineering handbook](docs/engineering-guide.md) — repository map, local environment, API identity, contributor workflow, debugging.
+- [Architecture and data-flow diagrams](docs/architecture.md) — processes, trust boundaries, logical data model and key workflows.
+- [Feature status inventory](docs/feature-status.md) — implemented vs partial vs planned vs not verified.
+- [Prioritized remaining work](docs/implementation-backlog.md) — P0 launch requirements, P1 pilot features, P2 later expansions.
+- [API and integration reference](docs/api-and-integrations.md) — routes, contract files and provider ownership.
+- [Deployment and incident runbook](docs/operations-runbook.md) — releases, monitoring, backups and recovery.
+- [QA and release checklist](docs/qa-and-release-checklist.md) — security, tenancy, financial and E2E acceptance criteria.
+
+**Product caveat:** substantial foundations are implemented, but real-world production readiness remains unverified. Native browser authentication/session UX, approved imports, evidence-backed Owner Proofbook and consented Avara integration are incomplete.
+
 ## Architecture
 
 ```text
@@ -351,11 +365,6 @@ See `contracts/openapi.yaml`, `contracts/documents.openapi.yaml`, and `contracts
 - Send external notifications asynchronously from durable outbox state.
 - Agents call authenticated domain APIs; they do not receive raw database access.
 
-## Next domains
+## Remaining product milestones
 
-1. Resource-scoped owner and tenant portals
-2. Scheduled operational automation and approval policies for agent actions
-3. Rent adjustments, reversals, deposits, owner statements and reconciliation
-4. Maintenance invoice/expense posting and owner approval policies
-5. Reporting, audit surfaces and operational analytics
-6. Avara and Blu integration adapters
+Resource-scoped portals, accounting adjustments/reversals, deposits/expenses, reporting and human-reviewed agent proposals already have code implementations. The remaining work is **not** to rewrite those foundations: complete the migration and identity lifecycle, prove data/finance invariants in staging, deliver real provider reconciliation, build approved CSV import, deliver Owner Proofbook and integrate Avara safely. Follow [feature status](docs/feature-status.md) and the [prioritized backlog](docs/implementation-backlog.md).
