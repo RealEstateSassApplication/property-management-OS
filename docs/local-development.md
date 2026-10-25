@@ -25,7 +25,7 @@ make dev
 1. create `.env` from `.env.example` when it does not exist;
 2. start the local PostgreSQL container;
 3. wait for PostgreSQL readiness;
-4. apply every migration and load deterministic development data on a fresh database;
+4. apply migrations 000001 through 000014 (including push devices) and seed data on a fresh database;
 5. download the Go module graph; and
 6. install the Next.js workspace dependencies.
 
@@ -80,3 +80,14 @@ make dev-stop
 The PostgreSQL named volume is retained. `make dev-setup` detects an existing initialized schema and will not replay first-run migrations or seed data.
 
 For an existing development database after pulling new migrations, apply the new migration target(s) explicitly before starting the application.
+
+
+## Existing databases and schema upgrades
+
+The setup script skips migrations if the organizations table already exists. It is not a migration version tracker. Verify the schema and apply **only** new migration files, in order; do not rerun make migrate-all against an existing database. If migration 000014 is the only missing revision, after a backup:
+
+~~~bash
+make migrate-push-devices
+~~~
+
+Do not run it again if push_devices already exists. A durable versioned migration runner, previous-release upgrade test and guarded production rollback remain P0 tasks. See [engineering guide](engineering-guide.md) and [backlog](implementation-backlog.md).
