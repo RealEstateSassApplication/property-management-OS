@@ -26,31 +26,100 @@ Start here for a code-grounded engineering handoff and product completion plan (
 
 ## Architecture
 
-```text
-Browser / manager UI
-        |
-        v
-Next.js web
-        |
-        v
-Go API modular monolith ---------------------------+
-        |                                           |
-        +--> PostgreSQL                             |
-        +--> S3-compatible object storage           |
-        +--> notification_outbox                    |
-                                                    |
-Go notification worker <----------------------------+
-        |
-        +--> delivery provider (log dev / webhook production)
+Property Management OS uses a **multi-tenant modular monolith**. The Next.js application is the user-facing interface; the Go HTTP API owns authorization, domain rules and all authoritative writes. PostgreSQL stores operational and financial records, while an S3-compatible bucket stores document bytes. A dedicated Go worker delivers notifications asynchronously. The optional MCP server exposes narrowly scoped agent tools **through the same authenticated API**, never directly through database access.
 
-AI agent / IDE
-        |
-        v
-Property OS MCP (stdio)
-        |
-        v
-Authenticated Property OS HTTP API
-```
+### System architecture
+
+~~~mermaid
+flowchart TB
+    subgraph Clients["Clients and integrations"]
+        Browser["Manager / Owner / Tenant browser"]
+        Agent["AI agent / IDE"]
+        Provider["Payment provider adapter"]
+    end
+
+    subgraph Application["Property Management OS"]
+        Gateway["Trusted identity gateway / OIDC session handling"]
+        Web["Next.js web app"]
+        API["Go HTTP API / modular monolith"]
+        MCP["Go MCP server (stdio)"]
+        Worker["Go notification worker"]
+    end
+
+    subgraph Data["Persistence and external services"]
+        DB[("PostgreSQL: domain data, ledgers, outbox")]
+        Store[("S3-compatible object storage")]
+        OIDC["OIDC issuer / JWKS"]
+        Notify["Notification provider / Expo Push"]
+    end
+
+    Browser -->|"HTTPS"| Gateway
+    Gateway --> Web
+    Gateway -.->|"OIDC integration"| OIDC
+    Web -->|"Per-request Bearer token + organization scope"| API
+    Agent -->|"MCP stdio"| MCP
+    MCP -->|"Authenticated HTTP API"| API
+    Provider -->|"Signed payment-paid webhook"| API
+    API -->|"Verify token via OIDC"| OIDC
+    API <--> DB
+    API -->|"Presigned upload / download flow"| Store
+    Worker -->|"Claim notification outbox"| DB
+    Worker -->|"Send / retry"| Notify
+~~~
+
+> **Authentication note:** The API verifies OIDC/JWT tokens and organization membership today. A trusted authenticated gateway can supply browser-request identity, but built-in browser login, refresh/logout and organization switching are still productization work. Development \`X-User-ID\` fallback must never be exposed publicly. The payment endpoint is a generic signed adapter, not a complete external checkout/reconciliation integration.
+
+### Backend modules
+
+The single Go API in \`apps/api/cmd/api\` composes domain services from \`apps/api/internal/\`. They are organized around business capabilities rather than deployed as individual microservices.
+
+| Domain | Primary responsibility | Source |
+| --- | --- | --- |
+| Identity and administration | OIDC mapping, organization membership, RBAC, settings, portal links | \`auth/\`, \`orgadmin/\`, \`portals/\` |
+| Portfolio | Properties, units, occupancy and ownership interests | \`properties/\`, \`units/\`, \`owners/\` |
+| Leasing | Tenants, tenancies and lease lifecycle | \`tenants/\`, \`tenancies/\`, \`leases/\` |
+| Finance | Rent obligations, posted payments, allocations, deposits, expenses and owner statements | \`rent/\`, \`accounting/\`, \`paymentproviders/\` |
+| Operations | Maintenance requests, vendors, quotes, work orders, evidence and inspections | \`maintenance/\`, \`inspections/\` |
+| Platform services | Document storage, notification outbox, reporting and audit | \`documents/\`, \`notifications/\`, \`reporting/\` |
+| Agent workflows | Limited MCP tools, proposals and human-reviewed approvals | \`agentactions/\`, \`cmd/mcp/\` |
+
+### Core business relationships
+
+~~~mermaid
+flowchart LR
+    Org["Organization"] --> Property["Property"]
+    Property --> Unit["Unit"]
+    Property --> OwnerInterest["Ownership interests / owners"]
+    Unit --> Tenancy["Tenancy / occupants"]
+    Tenancy --> Lease["Lease"]
+    Lease --> Obligation["Monthly rent obligation"]
+    Payment["Posted payment"] --> Allocation["Payment allocation"]
+    Allocation --> Obligation
+    Property --> Request["Maintenance request"]
+    Request --> Work["Work order"]
+    Work --> Quote["Vendor quote / human approval"]
+    Work --> Evidence["Completion evidence"]
+~~~
+
+This is a **logical model**, not the exact SQL schema. Read [domain-model.md](docs/domain-model.md) and the numbered \`migrations/\` files for constraints, table relationships and lifecycle rules.
+
+### How the key workflows operate
+
+1. **Authentication and isolation:** Requests carry the current user's Bearer token and an organization selector. Go verifies OIDC issuer/subject, resolves the internal user and checks organization membership plus route permissions. Owner and tenant portals additionally restrict access through explicit resource links.
+2. **Rent and accounting:** The backend derives obligations from leases and stores payments separately from allocations. Outstanding balances come from auditable records; financial amounts use integer minor units and preserve reversals.
+3. **Maintenance and inspections:** Requests produce work orders, quotes require appropriate approvals, and a work order cannot be completed without evidence. Document files live in object storage with controlled metadata and authorized signed URLs.
+4. **Notifications:** API services enqueue a durable PostgreSQL outbox record. The worker claims jobs, sends through configured delivery providers and marks deliveries, retries or terminal failures.
+5. **AI-agent operations:** MCP calls the ordinary authenticated API. Low-risk actions remain constrained; quote-approval proposals require review by an authorized human before execution.
+6. **External integrations:** A generic signed payment webhook exists; the optional Avara marketplace handoff remains planned. No external integration gets direct access to Property OS financial tables.
+
+### Detailed diagrams and engineering documentation
+
+- [Architecture and trust boundaries](docs/architecture.md)
+- [Domain model and lifecycle rules](docs/domain-model.md)
+- [Engineering handbook and local setup](docs/engineering-guide.md)
+- [API and external integrations](docs/api-and-integrations.md)
+- [Implemented features vs. unfinished work](docs/feature-status.md)
+- [Prioritized implementation backlog](docs/implementation-backlog.md)
 
 Core rules:
 
