@@ -2,6 +2,36 @@
 
 Property Management OS is a multi-tenant operational platform for rental property portfolios: properties and units, owners, tenants and occupancies, leases, rent, maintenance, documents, notifications, and agent-assisted operations.
 
+## Use Cases
+
+Property Management OS is designed for **residential property-management companies, independent property managers, and teams managing rental portfolios on behalf of multiple owners**. It brings portfolio records, leasing, rent collection, maintenance, documents, and operational oversight into one organization-scoped system.
+
+### Who uses it and why
+
+| User / scenario | What they can do with Property OS | Implementation status |
+| --- | --- | --- |
+| **Property manager — manage a portfolio** | Register properties and units, monitor occupancy, organize owners, and view operational portfolio metrics. | **Implemented foundation** |
+| **Leasing team — move a tenant into a unit** | Maintain tenant records, assign an occupancy/tenancy, manage lease terms and track the lease lifecycle without conflating tenants with login identities. | **Implemented foundation** |
+| **Accountant — track rent and cash** | Generate lease-based monthly obligations, post payments, allocate partial/full receipts, inspect arrears, record adjustments/reversals and handle security deposits. | **Implemented foundation**; settlement reconciliation requires further work |
+| **Property owner — review managed assets** | Access an owner-scoped portal summary with linked properties, occupancy, outstanding receivables and maintenance counts; managers can generate accounting owner statements. | **Implemented foundation**; evidence-backed **Owner Proofbook** and export are planned |
+| **Tenant — view tenancy and request maintenance** | See linked occupancy, lease/rent information and maintenance items, and submit a maintenance request tied to an authorized tenancy. | **Implemented resource-scoped portal foundation** |
+| **Maintenance coordinator — resolve property issues** | Intake and triage requests, assign work orders, handle vendor quotes and approvals, attach completion evidence and close completed work. | **Implemented foundation** |
+| **Field/inspection team — document condition** | Record move-in, move-out and periodic inspections, condition items, evidence references, completion and acknowledgement. | **Implemented foundation**; mobile/offline field UX needs independent validation |
+| **Operations staff — store files and send reminders** | Attach lease/property/maintenance documents, request controlled downloads, queue ledger-derived rent reminders and inspect delivery status. | **Implemented foundations**; real S3 storage and delivery providers must be configured and validated |
+| **Platform administrator — control access and monitor operations** | Manage organization settings, members, roles, owner/tenant links, dashboards and audit-event views. | **Implemented foundation**; complete self-service signup/login and SaaS billing are unfinished |
+| **AI-assisted operator — surface issues and propose action** | Use MCP tools to review arrears, expiring leases and open maintenance; queue controlled reminders or propose quote approvals for human review. | **Implemented constrained tools**; agents cannot directly approve high-risk spending or post money |
+
+**Example end-to-end workflow:** A manager registers a property and unit → creates a tenant and active tenancy → activates a lease → generates the monthly rent obligation → records a payment and allocates it → reviews outstanding rent and owner reporting. Another workflow starts with a tenant maintenance request → manager work order and vendor quote → authorized human approval → recorded completion evidence.
+
+### Planned or incomplete use cases
+
+- **Switching from spreadsheets or another property-management system:** The current onboarding flow **only validates and previews property CSV files**; approved, idempotent imports, collision review and reconciliation are planned ([Issue #20](https://github.com/RealEstateSassApplication/property-management-OS/issues/20)).
+- **Sending owners a complete evidence-backed report:** The **Owner Proofbook** would connect rent, adjustments, maintenance approvals/completion and inspection evidence into scoped, exportable reports ([Issue #19](https://github.com/RealEstateSassApplication/property-management-OS/issues/19)).
+- **Receiving applicants from Avara Marketplace:** A consented, reviewed application handoff and safe event integration are planned; Avara booking data must not become a lease or a duplicate financial ledger ([Issue #21](https://github.com/RealEstateSassApplication/property-management-OS/issues/21)).
+- **Real-world customer onboarding and payment processing:** Native web login/session lifecycle, paid subscription billing, provider-specific payment integration, bank settlement matching, production notifications and deployment sign-off still need development and validation.
+
+**Scope note:** “Implemented foundation” means the repository contains the core domain APIs, persistence and/or UI for that scenario—not that the entire workflow has passed production security, financial reconciliation, provider testing or customer acceptance. See [feature status](docs/feature-status.md) and [remaining implementation work](docs/implementation-backlog.md).
+
 ## Product strategy, Avara integration and roadmap
 
 Read [the Avara + Property OS competitive strategy and phased roadmap](docs/product-strategy-and-roadmap.md). It identifies the initial residential property-manager customer, the planned Owner Proofbook differentiation, release criteria, and the intended separation between Property OS financial records and the Avara marketplace.
