@@ -2,6 +2,10 @@
 
 Property Management OS is a multi-tenant operational platform for rental property portfolios: properties and units, owners, tenants and occupancies, leases, rent, maintenance, documents, notifications, and agent-assisted operations.
 
+## Public product showcase
+
+Property OS has a static GitHub Pages showcase with an interactive **sample-data** product tour (not a live authenticated application). See [GitHub Pages setup](docs/github-pages.md) and [the showcase source](site/index.html). The live Next.js/Go/PostgreSQL stack is deployed separately.
+
 ## Use Cases
 
 Property Management OS is designed for **residential property-management companies, independent property managers, and teams managing rental portfolios on behalf of multiple owners**. It brings portfolio records, leasing, rent collection, maintenance, documents, and operational oversight into one organization-scoped system.
