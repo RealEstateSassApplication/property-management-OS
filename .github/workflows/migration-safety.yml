@@ -62,3 +62,15 @@ jobs:
             exit 1
           fi
           test "$(psql -h localhost -U property_os -d legacy_property_os -Atc "SELECT to_regclass('public.schema_migrations') IS NULL")" = "t"
+      - name: Upgrade an explicitly reviewed version-13 legacy database
+        run: |
+          psql -h localhost -U property_os -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE upgrade_property_os'
+          for migration in migrations/*.up.sql; do
+            if [ "$migration" = "migrations/000014_push_devices.up.sql" ]; then break; fi
+            psql -h localhost -U property_os -d upgrade_property_os -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          export DATABASE_URL='postgres://property_os:property_os@localhost:5432/upgrade_property_os?sslmode=disable'
+          "$RUNNER_TEMP/property-os-migrate" -dir migrations -baseline-through=13 -confirm-reviewed-schema
+          "$RUNNER_TEMP/property-os-migrate" -dir migrations
+          test "$(psql -h localhost -U property_os -d upgrade_property_os -Atc 'SELECT count(*) FROM public.schema_migrations')" = "14"
+          test "$(psql -h localhost -U property_os -d upgrade_property_os -Atc "SELECT to_regclass('public.push_devices') IS NOT NULL")" = "t"
