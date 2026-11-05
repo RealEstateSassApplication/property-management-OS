@@ -17,7 +17,7 @@ type migration struct {
  version int
  name, sql, checksum string
 }
-var filePattern = regexp.MustCompile(`^([0-9]{6})_.+\\.up\\.sql$`)
+var filePattern = regexp.MustCompile(`^([0-9]{6})_.+\.up\.sql$`)
 
 func loadMigrations(dir string) ([]migration, error) {
  entries, err := os.ReadDir(dir)
