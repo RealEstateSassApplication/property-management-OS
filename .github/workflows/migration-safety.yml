@@ -1,0 +1,64 @@
+name: Migration safety
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  migration-runner:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: property_os
+          POSTGRES_USER: property_os
+          POSTGRES_PASSWORD: property_os
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U property_os -d property_os"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://property_os:property_os@localhost:5432/property_os?sslmode=disable
+      PGPASSWORD: property_os
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/api/go.mod
+          cache: false
+      - name: Build and unit-test migration runner
+        working-directory: apps/api
+        run: |
+          go test ./cmd/migrate
+          go build -o "$RUNNER_TEMP/property-os-migrate" ./cmd/migrate
+      - name: Apply fresh schema and confirm safe replay
+        run: |
+          "$RUNNER_TEMP/property-os-migrate" -dir migrations
+          "$RUNNER_TEMP/property-os-migrate" -dir migrations
+          test "$(psql -h localhost -U property_os -d property_os -Atc 'SELECT count(*) FROM public.schema_migrations')" = "14"
+          test "$(psql -h localhost -U property_os -d property_os -Atc "SELECT to_regclass('public.push_devices') IS NOT NULL")" = "t"
+      - name: Reject drift in previously applied migration files
+        run: |
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          cp migrations/*.sql "$tmp/"
+          printf '\n-- tampered migration\n' >> "$tmp/000001_core.up.sql"
+          if "$RUNNER_TEMP/property-os-migrate" -dir "$tmp"; then
+            echo 'ERROR: checksum drift was accepted' >&2
+            exit 1
+          fi
+          test "$(psql -h localhost -U property_os -d property_os -Atc 'SELECT count(*) FROM public.schema_migrations')" = "14"
+      - name: Reject an unreviewed legacy schema
+        run: |
+          psql -h localhost -U property_os -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE legacy_property_os'
+          psql -h localhost -U property_os -d legacy_property_os -v ON_ERROR_STOP=1 -f migrations/000001_core.up.sql
+          if DATABASE_URL='postgres://property_os:property_os@localhost:5432/legacy_property_os?sslmode=disable' "$RUNNER_TEMP/property-os-migrate" -dir migrations; then
+            echo 'ERROR: existing schema without a ledger was accepted' >&2
+            exit 1
+          fi
+          test "$(psql -h localhost -U property_os -d legacy_property_os -Atc "SELECT to_regclass('public.schema_migrations') IS NULL")" = "t"
