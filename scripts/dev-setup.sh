@@ -43,13 +43,14 @@ printf " ready\n"
 
 schema_exists=$(docker compose exec -T postgres psql -U "${POSTGRES_USER:-property_os}" -d "${POSTGRES_DB:-property_os}" -Atc "SELECT to_regclass('public.organizations') IS NOT NULL")
 
+echo "Verifying migration history and applying outstanding upgrades..."
+make migrate-all
+
 if [ "$schema_exists" != "t" ]; then
-  echo "Applying database migrations..."
-  make migrate-all
   echo "Loading deterministic development data..."
   make seed
 else
-  echo "Database schema already exists; skipping first-run migrations and seed."
+  echo "Preserving existing development records (no automatic reseed)."
 fi
 
 echo "Downloading Go modules..."
